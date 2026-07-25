@@ -4,10 +4,11 @@ import {
   Download,
   FileText,
   FlaskConical,
+  Loader2,
   Play,
   RefreshCw,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -71,10 +72,124 @@ const heading = (title: string, description: string) => (
   </div>
 );
 
+const projectNameSuggestions = [
+  'Dengue demo run',
+  'Influenza demo run',
+  'COVID spike demo',
+];
+
+const organismSuggestions = ['Dengue virus', 'Influenza A virus', 'SARS-CoV-2'];
+
+const proteinNameSuggestions = ['Envelope protein', 'Hemagglutinin', 'Spike glycoprotein'];
+
+const mhciAlleleSuggestions = ['HLA-A*02:01', 'HLA-A*24:02', 'HLA-B*07:02'];
+const mhciiAlleleSuggestions = ['HLA-DRB1*04:01', 'HLA-DRB1*07:01', 'HLA-DQB1*03:01'];
+const peptideLengthSuggestions = ['8, 9, 10, 11', '9, 10', '15'];
+const populationSuggestions = [
+  'synthetic-population-alpha, synthetic-population-beta',
+  'synthetic-population-gamma',
+  'global-population-demo',
+];
+const versionSuggestions = ['mvp-v1.0'];
+
+const approvedFixturePresets = {
+  custom: null,
+  'covid-spike': {
+    name: 'COVID spike demo',
+    organism: 'Synthetic demonstration',
+    proteinName: 'Synthetic spike-style demo protein',
+    description:
+      'Approved synthetic demonstration fixture. Use fixture-only execution for a passing offline revision.',
+    fasta:
+      '>SYNTHETIC_DEMO covid-spike UI scenario; not a pathogen reference sequence\nACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY',
+  },
+  influenza: {
+    name: 'Influenza demo',
+    organism: 'Synthetic demonstration',
+    proteinName: 'Synthetic HA-style demo protein',
+    description:
+      'Approved synthetic demonstration fixture. Use fixture-only execution for a passing offline revision.',
+    fasta:
+      '>SYNTHETIC_DEMO influenza UI scenario; not a pathogen reference sequence\nYWVTSRQPNMLKIHGFEDCAYWVTSRQPNMLKIHGFEDCAYWVTSRQPNMLKIHGFEDCA',
+  },
+  dengue: {
+    name: 'Dengue demo',
+    organism: 'Synthetic demonstration',
+    proteinName: 'Synthetic envelope-style demo protein',
+    description:
+      'Approved synthetic demonstration fixture. Use fixture-only execution for a passing offline revision.',
+    fasta:
+      '>SYNTHETIC_DEMO dengue UI scenario; not a pathogen reference sequence\nMKTAYIAKQRQISFVKSHFSMKTAYIAKQRQISFVKSHFSMKTAYIAKQRQISFVKSHFS',
+  },
+} as const;
+
+function SuggestedTextField({
+  id,
+  label,
+  name,
+  suggestions,
+  defaultValue,
+  value,
+  onChange,
+  required = true,
+  placeholder,
+  helper,
+}: {
+  id: string;
+  label: string;
+  name: string;
+  suggestions: readonly string[];
+  defaultValue?: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  required?: boolean;
+  placeholder?: string;
+  helper?: string;
+}) {
+  const listId = `${id}-suggestions`;
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        defaultValue={defaultValue}
+        id={id}
+        list={listId}
+        name={name}
+        placeholder={placeholder}
+        required={required}
+        value={value}
+        onChange={(event) => onChange?.(event.currentTarget.value)}
+      />
+      {helper ? <p className="text-xs text-muted-foreground">{helper}</p> : null}
+      <datalist id={listId}>
+        {suggestions.map((suggestion) => (
+          <option key={suggestion} value={suggestion} />
+        ))}
+      </datalist>
+    </Field>
+  );
+}
+
 export function CreateProjectPage() {
   const create = useCreateProject();
   const navigate = useNavigate();
+  const [preset, setPreset] = useState<keyof typeof approvedFixturePresets>('custom');
+  const [name, setName] = useState('');
+  const [organism, setOrganism] = useState('');
+  const [proteinName, setProteinName] = useState('');
+  const [description, setDescription] = useState('');
   const [fasta, setFasta] = useState('');
+
+  useEffect(() => {
+    const selected = approvedFixturePresets[preset];
+    if (selected === null) return;
+    setName(selected.name);
+    setOrganism(selected.organism);
+    setProteinName(selected.proteinName);
+    setDescription(selected.description);
+    setFasta(selected.fasta);
+  }, [preset]);
+
   return (
     <>
       {heading('Create Project', 'Register one protein FASTA record for a reproducible analysis.')}
@@ -88,35 +203,89 @@ export function CreateProjectPage() {
             className="flex flex-col gap-5"
             onSubmit={(event) => {
               event.preventDefault();
-              const values = new FormData(event.currentTarget);
               create.mutate(
                 {
-                  name: String(values.get('name')),
-                  organism: String(values.get('organism')),
-                  proteinName: String(values.get('proteinName')),
-                  description: String(values.get('description') || ''),
-                  fasta: String(values.get('fasta')),
+                  name,
+                  organism,
+                  proteinName,
+                  description,
+                  fasta,
                 },
                 { onSuccess: (result) => navigate(`/projects/${result.project.id}`) },
               );
             }}
           >
+            <Field>
+              <FieldLabel htmlFor="fixture-preset">Demo fixture preset</FieldLabel>
+              <Select
+                value={preset}
+                onValueChange={(value) => setPreset(value as keyof typeof approvedFixturePresets)}
+              >
+                <SelectTrigger id="fixture-preset">
+                  <SelectValue placeholder="Choose a preset or keep custom" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="custom">Custom input</SelectItem>
+                    <SelectItem value="covid-spike">Approved COVID spike demo</SelectItem>
+                    <SelectItem value="influenza">Approved influenza demo</SelectItem>
+                    <SelectItem value="dengue">Approved dengue demo</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Choose an approved demo fixture if you want a path to a passing offline revision.
+                You can still edit any field after selecting it.
+              </p>
+            </Field>
             <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="name">Project name</FieldLabel>
-                <Input id="name" name="name" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="organism">Organism</FieldLabel>
-                <Input id="organism" name="organism" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="proteinName">Protein name</FieldLabel>
-                <Input id="proteinName" name="proteinName" required />
-              </Field>
+              <SuggestedTextField
+                id="name"
+                label="Project name"
+                name="name"
+                suggestions={projectNameSuggestions}
+                placeholder="e.g. Dengue demo run"
+                value={name}
+                onChange={(value) => {
+                  setPreset('custom');
+                  setName(value);
+                }}
+              />
+              <SuggestedTextField
+                id="organism"
+                label="Organism"
+                name="organism"
+                suggestions={organismSuggestions}
+                placeholder="e.g. Dengue virus"
+                value={organism}
+                onChange={(value) => {
+                  setPreset('custom');
+                  setOrganism(value);
+                }}
+              />
+              <SuggestedTextField
+                id="proteinName"
+                label="Protein name"
+                name="proteinName"
+                suggestions={proteinNameSuggestions}
+                placeholder="e.g. Envelope protein"
+                value={proteinName}
+                onChange={(value) => {
+                  setPreset('custom');
+                  setProteinName(value);
+                }}
+              />
               <Field>
                 <FieldLabel htmlFor="description">Description</FieldLabel>
-                <Textarea id="description" name="description" />
+                <Textarea
+                  id="description"
+                  name="description"
+                  value={description}
+                  onChange={(event) => {
+                    setPreset('custom');
+                    setDescription(event.currentTarget.value);
+                  }}
+                />
               </Field>
               <Field id="fasta">
                 <FieldLabel htmlFor="fasta-file">Import FASTA file (optional)</FieldLabel>
@@ -127,7 +296,10 @@ export function CreateProjectPage() {
                   type="file"
                   onChange={(event) => {
                     const file = event.currentTarget.files?.[0];
-                    if (file) void file.text().then(setFasta);
+                    if (file) {
+                      setPreset('custom');
+                      void file.text().then(setFasta);
+                    }
                   }}
                 />
                 <p className="text-xs text-muted-foreground" id="fasta-file-help">
@@ -141,7 +313,10 @@ export function CreateProjectPage() {
                   name="fasta"
                   required
                   value={fasta}
-                  onChange={(event) => setFasta(event.currentTarget.value)}
+                  onChange={(event) => {
+                    setPreset('custom');
+                    setFasta(event.currentTarget.value);
+                  }}
                 />
               </Field>
             </FieldGroup>
@@ -295,14 +470,22 @@ export function ProjectSettingsPage() {
         }}
       >
         <ConfigurationCard title="MHC-I" description="Comma-separated alleles and lengths.">
-          <Field>
-            <FieldLabel htmlFor="mhci-alleles">Alleles</FieldLabel>
-            <Input id="mhci-alleles" name="mhciAlleles" defaultValue="HLA-A*02:01" required />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="mhci-lengths">Peptide lengths</FieldLabel>
-            <Input id="mhci-lengths" name="mhciLengths" defaultValue="9, 10" required />
-          </Field>
+          <SuggestedTextField
+            id="mhci-alleles"
+            label="Alleles"
+            name="mhciAlleles"
+            suggestions={mhciAlleleSuggestions}
+            defaultValue="HLA-A*02:01"
+            helper="Pick a common allele or type another comma-separated set."
+          />
+          <SuggestedTextField
+            id="mhci-lengths"
+            label="Peptide lengths"
+            name="mhciLengths"
+            suggestions={peptideLengthSuggestions}
+            defaultValue="9, 10"
+            helper="You can type your own comma-separated lengths too."
+          />
           <label className="flex items-start gap-2 text-sm">
             <input defaultChecked name="enableMhcflurry" type="checkbox" />
             <span>
@@ -315,43 +498,53 @@ export function ProjectSettingsPage() {
           </label>
         </ConfigurationCard>
         <ConfigurationCard title="MHC-II" description="Comma-separated alleles and lengths.">
-          <Field>
-            <FieldLabel htmlFor="mhcii-alleles">Alleles</FieldLabel>
-            <Input id="mhcii-alleles" name="mhciiAlleles" defaultValue="HLA-DRB1*04:01" required />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="mhcii-lengths">Peptide lengths</FieldLabel>
-            <Input id="mhcii-lengths" name="mhciiLengths" defaultValue="15" required />
-          </Field>
+          <SuggestedTextField
+            id="mhcii-alleles"
+            label="Alleles"
+            name="mhciiAlleles"
+            suggestions={mhciiAlleleSuggestions}
+            defaultValue="HLA-DRB1*04:01"
+            helper="Choose a known allele or type a custom comma-separated list."
+          />
+          <SuggestedTextField
+            id="mhcii-lengths"
+            label="Peptide lengths"
+            name="mhciiLengths"
+            suggestions={peptideLengthSuggestions}
+            defaultValue="15"
+            helper="MHC-II often uses longer peptides; custom values are allowed."
+          />
         </ConfigurationCard>
         <ConfigurationCard title="Population coverage" description="Coverage populations.">
-          <Field>
-            <FieldLabel htmlFor="populations">Population IDs</FieldLabel>
-            <Input
-              id="populations"
-              name="populations"
-              defaultValue="synthetic-population-alpha, synthetic-population-beta"
-              required
-            />
-          </Field>
+          <SuggestedTextField
+            id="populations"
+            label="Population IDs"
+            name="populations"
+            suggestions={populationSuggestions}
+            defaultValue="synthetic-population-alpha, synthetic-population-beta"
+            helper="Type one or more IDs separated by commas, or enter your own research population IDs."
+          />
         </ConfigurationCard>
         <ConfigurationCard
           title="Profiles and constraints"
           description="Immutable file-backed profiles; definitions are not stored in SQLite."
         >
-          <Field>
-            <FieldLabel htmlFor="rule-profile">Rule profile version</FieldLabel>
-            <Input id="rule-profile" name="ruleProfileVersion" defaultValue="mvp-v1.0" required />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="ranking-profile">Ranking profile version</FieldLabel>
-            <Input
-              id="ranking-profile"
-              name="rankingProfileVersion"
-              defaultValue="mvp-v1.0"
-              required
-            />
-          </Field>
+          <SuggestedTextField
+            id="rule-profile"
+            label="Rule profile version"
+            name="ruleProfileVersion"
+            suggestions={versionSuggestions}
+            defaultValue="mvp-v1.0"
+            helper="Use the approved profile version, or type another registered version."
+          />
+          <SuggestedTextField
+            id="ranking-profile"
+            label="Ranking profile version"
+            name="rankingProfileVersion"
+            suggestions={versionSuggestions}
+            defaultValue="mvp-v1.0"
+            helper="Use the default ranking profile or enter a different version string."
+          />
         </ConfigurationCard>
         <ConfigurationCard title="Execution policy" description="Live, cache, and fixture order.">
           <Field>
@@ -485,6 +678,10 @@ export function RunPage() {
     return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
   if (!query.data) return null;
   const run = query.data;
+  const active = run.status === 'QUEUED' || run.status === 'RUNNING';
+  const failed = run.status === 'FAILED';
+  const executionMode = run.executionMode ?? (failed ? 'Failed before execution' : 'Pending');
+  const runQuality = run.quality ?? (failed ? 'Failed before execution' : 'Pending');
   return (
     <>
       {heading(
@@ -510,43 +707,65 @@ export function RunPage() {
         </Alert>
       ) : null}
       <div className="grid gap-3 md:grid-cols-4">
-        <Stat label="Status" value={run.status} />
-        <Stat label="Execution mode" value={run.executionMode ?? 'Pending'} />
-        <Stat label="Run quality" value={run.quality ?? 'Pending'} />
+        <Stat label="Status" value={run.status} loading={active} />
+        <Stat label="Execution mode" value={executionMode} loading={active} />
+        <Stat label="Run quality" value={runQuality} loading={active} />
         <Stat
           label="Stages"
           value={`${run.stageProgress.filter((stage) => stage.status === 'SUCCEEDED').length} / ${run.stageProgress.length}`}
+          loading={active}
         />
       </div>
+      {failed ? (
+        <Alert variant="destructive">
+          <FlaskConical aria-hidden="true" />
+          <AlertTitle>Run failed before completion</AlertTitle>
+          <AlertDescription>
+            The workflow did not complete, so execution mode and run quality were never finalized.
+            This is expected when the workflow backend is unavailable or the run cannot start.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>Connector status</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Connector</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Version</TableHead>
-                <TableHead>Duration</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {run.connectors.map((connector) => (
-                <TableRow key={`${connector.connectorId}-${connector.method}`}>
-                  <TableCell>{connector.connectorId}</TableCell>
-                  <TableCell>{connector.method}</TableCell>
-                  <TableCell>
-                    <SourceStatusBadge status={connector.sourceStatus} />
-                  </TableCell>
-                  <TableCell>{connector.version}</TableCell>
-                  <TableCell>{connector.durationMs} ms</TableCell>
+          {run.connectors.length === 0 ? (
+            <EmptyState
+              title="No connector records yet"
+              message={
+                failed
+                  ? 'The run failed before any predictor or fixture connector produced a record.'
+                  : 'The run has not started yet, so no connector activity has been recorded.'
+              }
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Connector</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Duration</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {run.connectors.map((connector) => (
+                  <TableRow key={`${connector.connectorId}-${connector.method}`}>
+                    <TableCell>{connector.connectorId}</TableCell>
+                    <TableCell>{connector.method}</TableCell>
+                    <TableCell>
+                      <SourceStatusBadge status={connector.sourceStatus} />
+                    </TableCell>
+                    <TableCell>{connector.version}</TableCell>
+                    <TableCell>{connector.durationMs} ms</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
       <div className="flex flex-wrap gap-2">
@@ -577,12 +796,15 @@ export function RunPage() {
     </>
   );
 }
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, loading = false }: { label: string; value: string; loading?: boolean }) {
   return (
     <Card>
       <CardHeader>
         <CardDescription>{label}</CardDescription>
-        <CardTitle>{value}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <span>{value}</span>
+          {loading ? <Loader2 aria-hidden="true" className="size-4 animate-spin text-muted-foreground" /> : null}
+        </CardTitle>
       </CardHeader>
     </Card>
   );
@@ -590,7 +812,9 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 export function WorkflowPage() {
   const runId = id(useParams().runId);
-  const query = useWorkflow(runId);
+  const run = useRun(runId);
+  const active = run.data?.status === 'QUEUED' || run.data?.status === 'RUNNING';
+  const query = useWorkflow(runId, { refetchInterval: active ? 2_000 : false });
   if (query.isLoading) return <LoadingState label="Loading workflow" />;
   if (query.isError)
     return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
@@ -598,6 +822,19 @@ export function WorkflowPage() {
   return (
     <>
       {heading('Workflow Visualization', 'Dependency edges and server-recorded stage state.')}
+      {run.data ? (
+        <Alert>
+          <FlaskConical aria-hidden="true" />
+          <AlertTitle>
+            {active ? 'Run is still in progress' : `Run status: ${run.data.status}`}
+          </AlertTitle>
+          <AlertDescription>
+            {active
+              ? 'This view refreshes automatically while the run is queued or running.'
+              : 'This workflow snapshot is recorded from the server for the current revision.'}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <Card>
         <CardContent className="h-[620px] p-0">
           <GraphCanvas graph={query.data} label="Workflow dependency graph" />

@@ -32,11 +32,15 @@ export const useRun = (id: string) =>
     queryFn: () => apiRequest(`/runs/${id}`, runDetailSchema),
     enabled: id !== '',
   });
-export const useWorkflow = (id: string) =>
+export const useWorkflow = (
+  id: string,
+  options?: { enabled?: boolean; refetchInterval?: number | false },
+) =>
   useQuery({
     queryKey: ['workflow', id],
     queryFn: () => apiRequest(`/runs/${id}/workflow-graph`, graphSchema),
     enabled: id !== '',
+    ...(options ?? {}),
   });
 export const useEvidence = (id: string, depth: number) =>
   useQuery({
