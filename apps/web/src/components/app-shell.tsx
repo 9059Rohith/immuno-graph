@@ -71,9 +71,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <SidebarTrigger aria-label="Toggle navigation" />
           <span className="ml-3 text-sm text-muted-foreground">Research workspace</span>
         </header>
-        <main className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-5 px-4 py-5 md:px-7 md:py-6">
+        <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-5 px-4 py-5 md:px-7 md:py-6">
           {children}
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

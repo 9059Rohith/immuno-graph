@@ -1,0 +1,31 @@
+FROM node:20-bookworm-slim AS build
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.json tsconfig.base.json ./
+COPY apps/web/package.json apps/web/package.json
+COPY apps/api/package.json apps/api/package.json
+COPY apps/mcp/package.json apps/mcp/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/algorithms/package.json packages/algorithms/package.json
+COPY packages/database/package.json packages/database/package.json
+COPY packages/database/prisma/schema.prisma packages/database/prisma/schema.prisma
+COPY packages/database/src/prisma-command.ts packages/database/src/prisma-command.ts
+
+RUN npm ci --ignore-scripts
+
+COPY apps/web apps/web
+COPY packages/shared packages/shared
+
+ARG VITE_API_BASE_URL=/api/v1
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
+RUN npm run build --workspace @immunograph/shared \
+    && npm run build --workspace @immunograph/web
+
+FROM nginxinc/nginx-unprivileged:1.29-alpine
+
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+
+EXPOSE 8080

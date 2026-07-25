@@ -29,10 +29,18 @@ export default tseslint.config(
     },
   },
   {
-    files: ['scripts/**/*.mjs'],
+    files: ['scripts/**/*.mjs', 'playwright.config.mjs'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.node,
+      sourceType: 'module',
+    },
+  },
+  {
+    files: ['tests/e2e/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: { ...globals.node, ...globals.browser },
       sourceType: 'module',
     },
   },

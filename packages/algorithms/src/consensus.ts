@@ -17,6 +17,23 @@ export interface ConsensusResult {
   consensus: number;
 }
 
+export function calculateCategoricalEntropy(classes: readonly string[]): number {
+  if (classes.length === 0) return 0;
+  const counts = new Map<string, number>();
+  for (const value of classes) {
+    const normalized = value.trim();
+    if (normalized.length === 0) continue;
+    counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+  }
+  if (counts.size < 2) return 0;
+  const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
+  const rawEntropy = [...counts.values()].reduce((sum, count) => {
+    const probability = count / total;
+    return sum - probability * Math.log(probability);
+  }, 0);
+  return rawEntropy / Math.log(counts.size);
+}
+
 export function calculateConsensus(
   observations: readonly ConsensusObservation[],
   configuredRequiredWeight: number,

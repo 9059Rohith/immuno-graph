@@ -8,7 +8,13 @@ This checklist mirrors [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md). Check a
 - `npm run lint`: passed.
 - `npm run format:check`: passed.
 - `npm run build`: passed.
-- `npm run test`: passed, 61 test files and 246 tests.
+- `npm run test`: passed, 68 test files and 288 tests.
+- `npm run test:coverage`: passed; aggregate coverage is 75.82% statements and 60.11%
+  branches. `packages/algorithms` is at 96.3% statements and 87.2% branches.
+- `npm run test:e2e`: passed in desktop and mobile Chromium, 6 tests.
+- `docker compose build` and the deployed Compose smoke test passed for the non-root web,
+  API, and MCP images. The web health route, proxied API project route, and SPA entry point
+  all returned HTTP 200.
 - `npm run db:seed`: passed on the default local database.
 - `npm run db:migrate`: passed against a clean temporary SQLite database. The default `packages/database/prisma/immunograph.db` was locked during one verification attempt, which usually means a local API/dev process or SQLite handle was still open.
 - `npm run connectors:check:iedb`: passed against the live IEDB MHC-I tools API.
@@ -39,14 +45,14 @@ Implementation status summary: the offline fixture/synthetic path, REST API, MCP
 - [x] Define run configuration and immutable snapshot schema.
 - [x] Implement canonical JSON and SHA-256 helpers.
 - [x] Implement FASTA parser and strict protein validation.
-- [ ] Implement coordinate conversion helpers.
+- [x] Implement coordinate conversion helpers.
 - [x] Implement MHC-I peptide generation.
 - [x] Implement MHC-II peptide generation.
 - [x] Implement candidate-key generation.
 - [x] Implement registered normalization functions.
-- [ ] Implement evidence grouping compatibility checks.
+- [x] Implement evidence grouping compatibility checks.
 - [x] Implement weighted mean, variance, agreement, completeness, consensus.
-- [ ] Implement categorical entropy for display.
+- [x] Implement categorical entropy for display.
 - [x] Implement exact duplicate detection.
 - [x] Implement interval overlap and deterministic dominance.
 - [x] Implement rule engine and initial rule catalog.
@@ -54,7 +60,7 @@ Implementation status summary: the offline fixture/synthetic path, REST API, MCP
 - [x] Implement B-cell ranking profile.
 - [x] Implement category/confidence labels and stable sort.
 - [x] Implement deterministic candidate explanation.
-- [ ] Reach 90% coverage for algorithms.
+- [x] Reach 90% statement coverage for algorithms.
 
 ## Phase 2 — Data and database
 
@@ -116,8 +122,8 @@ live cache, and never be presented as provider-produced, experimental, clinical,
 - [x] Retain local exact-fixture replay only as the emergency final fallback.
 - [x] Implement run and stage state machines.
 - [x] Define immutable workflow DAG.
-- [ ] Implement dependency readiness scheduler.
-- [ ] Implement bounded parallel stage execution.
+- [x] Implement dependency readiness scheduler.
+- [x] Implement bounded parallel stage execution utility with ordered failure isolation.
 - [ ] Implement cancellation and retry.
 - [x] Persist `FIXTURE_ONLY` quality for exact synthetic replay runs.
 - [x] Implement configuration approval lifecycle mutation and persisted event.
@@ -176,7 +182,7 @@ live cache, and never be presented as provider-produced, experimental, clinical,
 - [x] Build shortlist approval flow.
 - [x] Build report/artifact downloads.
 - [x] Build connector/settings diagnostics.
-- [ ] Test keyboard, focus, responsive, empty, partial, and failure states.
+- [ ] Test all keyboard, focus, responsive, empty, partial, and failure states.
 
 ## Phase 8 — Reports and explanations
 
@@ -194,7 +200,7 @@ live cache, and never be presented as provider-produced, experimental, clinical,
 ## Phase 9 — Final verification
 
 - [x] Run full test suite.
-- [ ] Run coverage suite.
+- [x] Run coverage suite.
 - [x] Run clean database migration.
 - [x] Run offline fixture demos.
 - [ ] Run live/cached path where available.
@@ -202,9 +208,9 @@ live cache, and never be presented as provider-produced, experimental, clinical,
 - [ ] Demonstrate failed/partial branch.
 - [ ] Demonstrate disagreement-to-review outcome.
 - [ ] Verify replay hashes.
-- [ ] Run security/dependency checks.
+- [x] Run security/dependency checks.
 - [ ] Review logs for sequence/secret leakage.
-- [ ] Rehearse demo using the final build.
+- [x] Rehearse core desktop/mobile flows using the final container build.
 - [ ] Freeze demo data and profile versions.
 
 ## Definition of done

@@ -119,11 +119,13 @@ The MVP runs one NitroStack MCP server process on `http://127.0.0.1:3001/mcp`. P
 
 ```powershell
 npm install
-npm run db:generate
 npm run db:migrate
 npm run db:seed
 npm run dev
 ```
+
+`npm install` generates the Prisma client automatically. The explicit
+`npm run db:generate` command remains available after schema changes.
 
 `npm run dev` starts the web app, Fastify API, and NitroStack MCP server together. Defaults are web `5173`, API `3000`, and MCP `3001`. The API endpoint can be changed with `MCP_SERVER_URL`.
 
@@ -131,6 +133,9 @@ npm run dev
 
 ImmunoGraph deploys to NitroStack Cloud as an MCP-first app. The cloud artifact is
 `apps/mcp`; the React workspace and Fastify API remain separately deployable.
+Follow the verified [NitroCloud deployment guide](docs/NITROCLOUD_DEPLOYMENT.md)
+for the current CLI limitations, dashboard settings, environment variables, and
+post-deployment checks.
 
 Cloud target:
 
@@ -157,11 +162,11 @@ MHCFLURRY_ENABLED=false
 DEMO_MODE=true
 ```
 
-Build only the MCP app:
+Verify and build only the MCP app:
 
 ```powershell
-npm run mcp:build
-npm run mcp:start
+npm run nitro:verify
+npm start
 ```
 
 Docker deployment:
@@ -170,6 +175,23 @@ Docker deployment:
 docker build -f Dockerfile.mcp -t immunograph-mcp .
 docker run --rm -p 3001:3001 --env-file .env.production.example immunograph-mcp
 ```
+
+## Complete production stack
+
+The web application, REST API, MCP server, SQLite database, migrations, seed data, and
+persistent artifact storage can be started together:
+
+```powershell
+docker compose up --build -d
+```
+
+Open `http://localhost:8080`. Set `IMMUNOGRAPH_PORT` to publish a different port.
+The API container applies migrations before startup, seed operations are idempotent, and
+SQLite plus generated artifacts are retained in the `immunograph-data` volume.
+
+For an offline deployment, keep `IEDB_LIVE_ENABLED=false`, `MHCFLURRY_ENABLED=false`, and
+`DEMO_MODE=true`. Enable live connectors only after their runtime and scientific-data
+governance requirements have been verified.
 
 The initial cloud deployment should keep `MHCFLURRY_ENABLED=false` unless the
 runtime has Python, the MHCflurry CLI, and downloaded models installed. IEDB is

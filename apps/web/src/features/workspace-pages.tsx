@@ -74,11 +74,7 @@ const heading = (title: string, description: string) => (
   </div>
 );
 
-const projectNameSuggestions = [
-  'Dengue demo run',
-  'Influenza demo run',
-  'COVID spike demo',
-];
+const projectNameSuggestions = ['Dengue demo run', 'Influenza demo run', 'COVID spike demo'];
 
 const organismSuggestions = ['Dengue virus', 'Influenza A virus', 'SARS-CoV-2'];
 
@@ -799,14 +795,24 @@ export function RunPage() {
     </>
   );
 }
-function Stat({ label, value, loading = false }: { label: string; value: string; loading?: boolean }) {
+function Stat({
+  label,
+  value,
+  loading = false,
+}: {
+  label: string;
+  value: string;
+  loading?: boolean;
+}) {
   return (
     <Card>
       <CardHeader>
         <CardDescription>{label}</CardDescription>
         <CardTitle className="flex items-center gap-2">
           <span>{value}</span>
-          {loading ? <Loader2 aria-hidden="true" className="size-4 animate-spin text-muted-foreground" /> : null}
+          {loading ? (
+            <Loader2 aria-hidden="true" className="size-4 animate-spin text-muted-foreground" />
+          ) : null}
         </CardTitle>
       </CardHeader>
     </Card>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { calculateConsensus } from './consensus.js';
+import { calculateCategoricalEntropy, calculateConsensus } from './consensus.js';
 
 describe('calculateConsensus', () => {
   it('calculates weighted mean, population variance, agreement, completeness, and consensus', () => {
@@ -47,5 +47,25 @@ describe('calculateConsensus', () => {
       ),
     ).toThrow();
     expect(() => calculateConsensus([], 0)).toThrow();
+  });
+});
+
+describe('calculateCategoricalEntropy', () => {
+  it('returns zero for empty, blank, and single-class inputs', () => {
+    expect(calculateCategoricalEntropy([])).toBe(0);
+    expect(calculateCategoricalEntropy(['', '  '])).toBe(0);
+    expect(calculateCategoricalEntropy(['strong', 'strong'])).toBe(0);
+  });
+
+  it('returns one for evenly distributed non-empty classes', () => {
+    expect(calculateCategoricalEntropy(['strong', 'weak'])).toBeCloseTo(1, 12);
+    expect(calculateCategoricalEntropy(['a', 'b', 'c'])).toBeCloseTo(1, 12);
+  });
+
+  it('normalizes an uneven distribution by the observed class count', () => {
+    expect(calculateCategoricalEntropy(['strong', 'strong', 'strong', 'weak'])).toBeCloseTo(
+      0.811278124459,
+      12,
+    );
   });
 });

@@ -1,0 +1,54 @@
+name: immunograph
+
+services:
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3001
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 3001
+      MCP_TRANSPORT_TYPE: dual
+      IEDB_LIVE_ENABLED: ${IEDB_LIVE_ENABLED:-false}
+      MHCFLURRY_ENABLED: ${MHCFLURRY_ENABLED:-false}
+      DEMO_MODE: ${DEMO_MODE:-true}
+    expose:
+      - '3001'
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      DATABASE_URL: file:/data/immunograph.db
+      ARTIFACT_ROOT: /data/artifacts
+      MCP_SERVER_URL: http://mcp:3001/mcp
+      DEMO_MODE: ${DEMO_MODE:-true}
+      LLM_ENABLED: 'false'
+    volumes:
+      - immunograph-data:/data
+    depends_on:
+      - mcp
+    expose:
+      - '3000'
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    depends_on:
+      - api
+    ports:
+      - '${IMMUNOGRAPH_PORT:-8080}:8080'
+    restart: unless-stopped
+
+volumes:
+  immunograph-data:

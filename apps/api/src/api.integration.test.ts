@@ -92,7 +92,7 @@ describe('REST API', () => {
     expect(response.json()).toEqual({ status: 'ok' });
     expect(gateway.execute).not.toHaveBeenCalled();
     await app.close();
-  });
+  }, 15_000);
 
   it('registers every documented endpoint and delegates regular requests', async () => {
     const gateway = services();

@@ -6,4 +6,6 @@ data/generated
 *.db
 *.db-journal
 .vitest-debug.json
+playwright-report
+test-results
 *.md

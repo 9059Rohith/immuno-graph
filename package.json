@@ -17,6 +17,7 @@
     "apps/mcp"
   ],
   "scripts": {
+    "postinstall": "npm run db:generate",
     "predev": "npm run db:migrate --workspace @immunograph/database",
     "build": "npm run build:types && npm run build --workspace @immunograph/web",
     "build:types": "tsc -b",
@@ -27,10 +28,15 @@
     "mcp:dev": "npm run dev --workspace @immunograph/mcp",
     "mcp:start": "npm run start --workspace @immunograph/mcp",
     "mcp:cloud:start": "npm run start --workspace @immunograph/mcp",
+    "start": "npm run mcp:cloud:start",
+    "nitro:build": "npm run db:generate && npm run mcp:build",
+    "nitro:verify": "npm run typecheck && npm run lint && npm test && npm run nitro:build",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage --passWithNoTests",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "connectors:check:iedb": "node scripts/check-iedb.mjs",
@@ -44,6 +50,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.0",
     "@types/node": "20.19.43",
     "@vitest/coverage-v8": "4.1.10",
     "concurrently": "9.2.4",
