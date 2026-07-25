@@ -2,9 +2,14 @@ import { loadReferenceBundle } from '@immunograph/database';
 
 import type { ConnectorDiagnosticsPort } from './ports.js';
 
-/** Read IEDB_LIVE_ENABLED without pulling the full validated env schema here. */
-const iedbLiveEnabled = (process.env.IEDB_LIVE_ENABLED ?? 'false').toLowerCase().trim() === 'true';
-const mhcflurryEnabled = (process.env.MHCFLURRY_ENABLED ?? 'false').toLowerCase().trim() === 'true';
+/** Read connector flags dynamically so diagnostics reflect the current runtime environment. */
+function envFlag(name: string): boolean {
+  return (process.env[name] ?? 'false').toLowerCase().trim() === 'true';
+}
+
+function envConfigured(name: string): boolean {
+  return (process.env[name] ?? '').trim().length > 0;
+}
 
 export class LocalConnectorDiagnosticsPort implements ConnectorDiagnosticsPort {
   constructor(private readonly clock: () => Date = () => new Date()) {}
@@ -22,9 +27,14 @@ export class LocalConnectorDiagnosticsPort implements ConnectorDiagnosticsPort {
           ? ('APPROVED' as const)
           : connector.connectorId === 'mhcflurry'
             ? ('APPROVED' as const)
-            : iedbLiveEnabled
-              ? ('APPROVED' as const)
-              : ('RESTRICTED' as const),
+            : connector.connectorId === 'iedb-population-coverage'
+              ? envFlag('IEDB_POPULATION_COVERAGE_ENABLED') &&
+                envConfigured('IEDB_POPULATION_COVERAGE_URL')
+                ? ('APPROVED' as const)
+                : ('RESTRICTED' as const)
+              : envFlag('IEDB_LIVE_ENABLED')
+                ? ('APPROVED' as const)
+                : ('RESTRICTED' as const),
     }));
   }
 
@@ -35,7 +45,12 @@ export class LocalConnectorDiagnosticsPort implements ConnectorDiagnosticsPort {
       const isLiveConnector = !connector.fixtureOnly && !connector.syntheticOnly;
       const liveActive =
         isLiveConnector &&
-        (connector.connectorId === 'mhcflurry' ? mhcflurryEnabled : iedbLiveEnabled);
+        (connector.connectorId === 'mhcflurry'
+          ? envFlag('MHCFLURRY_ENABLED')
+          : connector.connectorId === 'iedb-population-coverage'
+            ? envFlag('IEDB_POPULATION_COVERAGE_ENABLED') &&
+              envConfigured('IEDB_POPULATION_COVERAGE_URL')
+            : envFlag('IEDB_LIVE_ENABLED'));
       return {
         connectorId: connector.connectorId,
         health: liveActive

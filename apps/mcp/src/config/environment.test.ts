@@ -31,4 +31,19 @@ describe('MCP environment', () => {
       MCP_TRANSPORT_TYPE: 'dual',
     });
   });
+
+  it('loads explicit IEDB population coverage connector configuration', () => {
+    process.env = {
+      NODE_ENV: 'production',
+      IEDB_POPULATION_COVERAGE_ENABLED: 'true',
+      IEDB_POPULATION_COVERAGE_URL: 'https://example.test/iedb/population',
+      IEDB_POPULATION_COVERAGE_TIMEOUT_MS: '5000',
+    };
+
+    expect(loadMcpEnvironment()).toMatchObject({
+      IEDB_POPULATION_COVERAGE_ENABLED: true,
+      IEDB_POPULATION_COVERAGE_URL: 'https://example.test/iedb/population',
+      IEDB_POPULATION_COVERAGE_TIMEOUT_MS: 5000,
+    });
+  });
 });

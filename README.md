@@ -150,6 +150,8 @@ HOST=0.0.0.0
 PORT=3001
 MCP_TRANSPORT_TYPE=dual
 IEDB_LIVE_ENABLED=true
+IEDB_POPULATION_COVERAGE_ENABLED=false
+# IEDB_POPULATION_COVERAGE_URL=https://your-configured-iedb-population-endpoint.example/api
 MHCFLURRY_ENABLED=false
 DEMO_MODE=true
 ```
@@ -171,6 +173,9 @@ docker run --rm -p 3001:3001 --env-file .env.production.example immunograph-mcp
 The initial cloud deployment should keep `MHCFLURRY_ENABLED=false` unless the
 runtime has Python, the MHCflurry CLI, and downloaded models installed. IEDB is
 the primary live cloud connector because it only requires outbound HTTPS.
+Population coverage uses an optional configurable IEDB HTTP endpoint; keep
+`IEDB_POPULATION_COVERAGE_ENABLED=false` until `IEDB_POPULATION_COVERAGE_URL`
+has been configured and verified in the deployment runtime.
 
 ## Technology baseline
 

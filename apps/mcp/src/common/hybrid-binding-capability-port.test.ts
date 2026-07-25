@@ -197,6 +197,65 @@ describe('HybridBindingCapabilityPort', () => {
     expect(shouldNotBeCalled).not.toHaveBeenCalled();
   });
 
+  it('routes population coverage to IEDB HTTP when configured and live policy is requested', async () => {
+    const populationRequest = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ projectedCoverage: 0.62, averageHits: 1.1 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const port = new HybridBindingCapabilityPort({
+      iedb: { enabled: false },
+      iedbPopulationCoverage: {
+        enabled: true,
+        url: 'https://example.test/iedb/population',
+        request: populationRequest,
+      },
+    });
+
+    const result = (await port.invoke('calculate_population_coverage', {
+      runId: 'run-1',
+      associations: [{ candidateId: 'candidate-1', allele: 'HLA-A*02:01' }],
+      populationIds: ['World'],
+      classMode: 'CLASS_I',
+      fallbackPolicy: 'LIVE_ONLY',
+    })) as { projectedCoverage: number; provenance: Record<string, unknown> };
+
+    expect(result.projectedCoverage).toBe(0.62);
+    expect(result.provenance).toMatchObject({
+      connectorId: 'iedb-population-coverage',
+      status: 'LIVE',
+    });
+    expect(populationRequest).toHaveBeenCalledOnce();
+  });
+
+  it('falls back to fixture for population coverage when IEDB population is unavailable and policy permits', async () => {
+    const populationRequest = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response('', { status: 500 }));
+    const port = new HybridBindingCapabilityPort({
+      iedb: { enabled: false },
+      iedbPopulationCoverage: {
+        enabled: true,
+        url: 'https://example.test/iedb/population',
+        request: populationRequest,
+      },
+    });
+
+    await expect(
+      port.invoke('calculate_population_coverage', {
+        runId: 'run-1',
+        associations: [{ candidateId: 'candidate-1', allele: 'HLA-A*02:01' }],
+        populationIds: ['World'],
+        classMode: 'CLASS_I',
+        fallbackPolicy: 'CACHE_THEN_LIVE_THEN_FIXTURE',
+      }),
+    ).rejects.toMatchObject({
+      code: expect.stringMatching(/FIXTURE_NOT_FOUND|DEPENDENCY_UNAVAILABLE/),
+    });
+    expect(populationRequest).toHaveBeenCalledOnce();
+  });
+
   it('exposes liveEnabled=true when IEDB live is configured', () => {
     const port = makeLivePort();
     expect(port.liveEnabled).toBe(true);

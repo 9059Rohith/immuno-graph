@@ -12,9 +12,8 @@ import type { ExecutionContext } from '@nitrostack/core';
 import type { z } from 'zod';
 
 import type { CapabilityPort } from '../common/capability-port.js';
+import { buildDefaultCapabilityPort } from '../common/default-capability-port.js';
 import { executeTool, ToolExecutionError } from '../common/executor.js';
-import { HybridBindingCapabilityPort } from '../common/hybrid-binding-capability-port.js';
-import { loadMcpEnvironment } from '../config/environment.js';
 import {
   generatePeptidesContract,
   predictBcellContract,
@@ -28,29 +27,7 @@ import {
 const CATEGORY = 'Prediction Tools';
 const referenceBundle = loadReferenceBundle();
 
-// Build the default capability port from the current environment at module load time.
-// This wires IEDB live calls when IEDB_LIVE_ENABLED=true, and falls back to fixtures
 // otherwise — providing seamless offline/backup mode without code changes.
-const buildDefaultCapabilityPort = (): CapabilityPort => {
-  const env = loadMcpEnvironment();
-  return new HybridBindingCapabilityPort({
-    iedb: {
-      enabled: env.IEDB_LIVE_ENABLED,
-      timeoutMs: env.IEDB_TIMEOUT_MS,
-      maximumResponseBytes: env.IEDB_MAX_RESPONSE_BYTES,
-      ...(env.IEDB_MHCI_URL ? { mhciUrl: env.IEDB_MHCI_URL } : {}),
-      ...(env.IEDB_MHCII_URL ? { mhciiUrl: env.IEDB_MHCII_URL } : {}),
-    },
-    mhcflurry: {
-      enabled: env.MHCFLURRY_ENABLED,
-      command: env.MHCFLURRY_COMMAND,
-      methodVersion: env.MHCFLURRY_METHOD_VERSION,
-      timeoutMs: env.MHCFLURRY_TIMEOUT_MS,
-      maximumResponseBytes: env.MHCFLURRY_MAX_RESPONSE_BYTES,
-    },
-  });
-};
-
 @ControllerDecorator()
 export class PredictionController {
   private capabilities: CapabilityPort;

@@ -19,8 +19,8 @@ import type { ExecutionContext } from '@nitrostack/core';
 import type { z } from 'zod';
 
 import type { CapabilityPort } from '../common/capability-port.js';
+import { buildDefaultCapabilityPort } from '../common/default-capability-port.js';
 import { executeTool, ToolExecutionError } from '../common/executor.js';
-import { localFixtureCapabilityPort } from '../common/local-fixture-capability-port.js';
 import {
   consensusContract,
   consensusBatchContract,
@@ -37,7 +37,7 @@ const referenceBundle = loadReferenceBundle();
 
 @ControllerDecorator()
 export class EvidenceController {
-  private capabilities: CapabilityPort = localFixtureCapabilityPort;
+  private capabilities: CapabilityPort = buildDefaultCapabilityPort();
 
   useCapabilityPort(capabilities: CapabilityPort): this {
     this.capabilities = capabilities;

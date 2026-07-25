@@ -7,15 +7,21 @@
  *   3. Local fixture fallback (on transient connector errors, when policy permits)
  *   4. Typed failure (all other cases)
  *
- * All other capabilities (predict_bcell_fixture, calculate_population_coverage,
- * optimize_shortlist_coverage) are always delegated to the fixture port - GraphBepi
- * remains fixture-only per ADR-017.
+ * Population coverage:
+ *   1. IEDB HTTP live coverage when explicitly configured
+ *   2. Local fixture fallback when policy permits
+ *
+ * GraphBepi remains fixture-only per ADR-017.
  */
 
 import type { CapabilityPort } from './capability-port.js';
 import { ToolExecutionError } from './executor.js';
 import type { IedbBindingCapabilityOptions } from './iedb-binding-capability-port.js';
 import { IedbBindingCapabilityPort } from './iedb-binding-capability-port.js';
+import {
+  IedbPopulationCoverageCapabilityPort,
+  type IedbPopulationCoverageCapabilityOptions,
+} from './iedb-population-coverage-capability-port.js';
 import { LocalFixtureCapabilityPort } from './local-fixture-capability-port.js';
 import {
   MhcflurryBindingCapabilityPort,
@@ -23,6 +29,7 @@ import {
 } from './mhcflurry-binding-capability-port.js';
 
 const BINDING_CAPABILITIES = new Set(['predict_mhci', 'predict_mhcii']);
+const POPULATION_COVERAGE_CAPABILITY = 'calculate_population_coverage';
 const MHCFLURRY_METHODS = new Set(['mhcflurry-presentation']);
 
 interface BindingCapabilityResult {
@@ -65,16 +72,21 @@ function permitsFixture(policy: string): boolean {
 
 export interface HybridBindingCapabilityOptions {
   iedb: IedbBindingCapabilityOptions;
+  iedbPopulationCoverage?: IedbPopulationCoverageCapabilityOptions;
   mhcflurry?: MhcflurryBindingCapabilityOptions;
 }
 
 export class HybridBindingCapabilityPort implements CapabilityPort {
   private readonly iedbPort: IedbBindingCapabilityPort;
+  private readonly iedbPopulationCoveragePort: IedbPopulationCoverageCapabilityPort;
   private readonly mhcflurryPort: MhcflurryBindingCapabilityPort;
   private readonly fixturePort: LocalFixtureCapabilityPort;
 
   constructor(options: HybridBindingCapabilityOptions) {
     this.iedbPort = new IedbBindingCapabilityPort(options.iedb);
+    this.iedbPopulationCoveragePort = new IedbPopulationCoverageCapabilityPort(
+      options.iedbPopulationCoverage ?? { enabled: false },
+    );
     this.mhcflurryPort = new MhcflurryBindingCapabilityPort(
       options.mhcflurry ?? { enabled: false },
     );
@@ -89,6 +101,9 @@ export class HybridBindingCapabilityPort implements CapabilityPort {
   async invoke(capability: string, input: unknown): Promise<unknown> {
     // Non-binding capabilities always go to the fixture port.
     if (!BINDING_CAPABILITIES.has(capability)) {
+      if (capability === POPULATION_COVERAGE_CAPABILITY) {
+        return this.invokePopulationCoverage(input);
+      }
       return this.fixturePort.invoke(capability, input);
     }
 
@@ -184,6 +199,21 @@ export class HybridBindingCapabilityPort implements CapabilityPort {
       `Live IEDB connector is not enabled and fallback policy '${fallbackPolicy}' does not permit fixtures.`,
       false,
     );
+  }
+
+  private async invokePopulationCoverage(input: unknown): Promise<unknown> {
+    const fallbackPolicy = this.extractFallbackPolicy(input);
+    if (fallbackPolicy === 'FIXTURE_ONLY') {
+      return this.fixturePort.invoke(POPULATION_COVERAGE_CAPABILITY, input);
+    }
+    try {
+      return await this.iedbPopulationCoveragePort.invoke(POPULATION_COVERAGE_CAPABILITY, input);
+    } catch (error) {
+      if (isTransient(error) && permitsFixture(fallbackPolicy)) {
+        return this.fixturePort.invoke(POPULATION_COVERAGE_CAPABILITY, input);
+      }
+      throw error;
+    }
   }
 
   private extractFallbackPolicy(input: unknown): string {

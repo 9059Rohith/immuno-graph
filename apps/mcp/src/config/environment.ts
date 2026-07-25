@@ -27,6 +27,24 @@ const rawMcpEnvironmentSchema = z.object({
   IEDB_MHCI_URL: z.string().url().optional(),
   /** Override the IEDB MHC-II endpoint (leave unset to use the official URL). */
   IEDB_MHCII_URL: z.string().url().optional(),
+  /**
+   * Enable IEDB HTTP population coverage. Off by default because IEDB does not
+   * publish this endpoint in the same stable Tools-API contract as MHC binding.
+   */
+  IEDB_POPULATION_COVERAGE_ENABLED: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .default('false'),
+  /** Explicit configured IEDB-compatible population coverage HTTP endpoint. */
+  IEDB_POPULATION_COVERAGE_URL: z.string().url().optional(),
+  /** Per-request timeout for IEDB population coverage HTTP calls (ms). */
+  IEDB_POPULATION_COVERAGE_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
+  /** Maximum permitted IEDB population coverage response body size (bytes). */
+  IEDB_POPULATION_COVERAGE_MAX_RESPONSE_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10 * 1024 * 1024),
   /** Enable local MHCflurry MHC-I predictions. Off by default unless the CLI/models are installed. */
   MHCFLURRY_ENABLED: z
     .enum(['true', 'false'])

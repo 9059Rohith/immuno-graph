@@ -142,13 +142,14 @@ live cache, and never be presented as provider-produced, experimental, clinical,
 - [ ] Confirm licenses and supported programmatic access.
 - [x] Implement IEDB MHC-I adapter.
 - [x] Implement IEDB MHC-II adapter.
-- [ ] Implement population-coverage adapter.
+- [x] Implement optional configurable IEDB HTTP population-coverage adapter.
 - [x] Implement optional local MHCflurry MHC-I adapter behind `MHCFLURRY_ENABLED`.
 - [x] Add connector registry, HLA support, normalization profile, and manifest updates for `mhcflurry-presentation`.
 - [x] Route mixed IEDB + MHCflurry MHC-I method requests through separate connectors and merge provenance.
 - [x] Add repeatable `npm run connectors:install:mhcflurry` and `npm run connectors:check:mhcflurry` commands.
 - [x] Install and verify MHCflurry CLI/models in the local development runtime.
 - [ ] Install and verify MHCflurry CLI/models in the production deployment runtime before enabling `MHCFLURRY_ENABLED=true` there.
+- [ ] Configure and verify `IEDB_POPULATION_COVERAGE_URL` in the production deployment runtime before enabling `IEDB_POPULATION_COVERAGE_ENABLED=true` there.
 - [ ] Register score profiles for each enabled method/version.
 - [x] Add parser samples and tests.
 - [x] Verify `LIVE -> CACHED` behavior.

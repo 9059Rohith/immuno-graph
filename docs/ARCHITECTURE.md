@@ -186,7 +186,7 @@ interface PredictorConnector<I, O> {
 7. If synthetic is unavailable or not permitted, look up an exact approved `FIXTURE`.
 8. Otherwise fail closed with a typed error.
 
-Current implementation status: the MCP server contains IEDB MHC-I/MHC-II binding adapters, an optional local MHCflurry MHC-I adapter, and a hybrid binding capability port that can split mixed IEDB/MHCflurry method requests and merge validated provenance. The API workflow passes the validated normalized sequence to MCP for live T-cell binding, stores schema-valid live binding results in the SQLite `CacheEntry` repository, and reuses exact matches as `CACHED` provenance on later runs. Official population coverage remains external-gated work.
+Current implementation status: the MCP server contains IEDB MHC-I/MHC-II binding adapters, an optional configurable IEDB HTTP population-coverage adapter, an optional local MHCflurry MHC-I adapter, and a hybrid capability port that can split mixed IEDB/MHCflurry method requests and merge validated provenance. The API workflow passes the validated normalized sequence to MCP for live T-cell binding, stores schema-valid live binding results in the SQLite `CacheEntry` repository, and reuses exact matches as `CACHED` provenance on later runs. IEDB population coverage is live only when `IEDB_POPULATION_COVERAGE_ENABLED=true` and `IEDB_POPULATION_COVERAGE_URL` is configured; otherwise population coverage transparently uses the synthetic/fixture backup path.
 ```
 
 The default policy is `CACHE_THEN_LIVE_THEN_FIXTURE` with requested execution mode `AUTO`. Explicit requested modes are `AUTO`, `LIVE`, `SYNTHETIC`, and `FIXTURE`; resolved modes persisted on the run are `LIVE`, `SYNTHETIC`, `FIXTURE`, and `HYBRID`.
