@@ -9,7 +9,6 @@ import {
   identifierSchema,
   ruleOutcomeSchema,
   sha256Schema,
-  toolResultSchema,
   unitIntervalSchema,
 } from './common/contracts.js';
 
@@ -146,7 +145,10 @@ export function toolOptions(contract: ToolContract, category: string): ToolOptio
     name: contract.name,
     description: contract.description,
     inputSchema: contract.inputSchema,
-    outputSchema: toolResultSchema(contract.dataSchema),
+    // NitroStack v1.0.13 serializes normal tool handler returns as text content.
+    // The MCP SDK rejects text-only results when a tool advertises outputSchema,
+    // expecting structuredContent instead. We still validate every output inside
+    // executeTool; omitting advertised outputSchema keeps HTTP clients compatible.
     examples: { request: contract.exampleInput, response: failureExample(contract.name) },
     metadata: { category, tags: ['immunograph', 'deterministic', 'mvp-v1'] },
     annotations: { readOnlyHint: true, idempotentHint: true },

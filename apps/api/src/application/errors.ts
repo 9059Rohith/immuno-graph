@@ -12,9 +12,12 @@ export class ApplicationError extends Error {
 }
 
 export class DependencyUnavailableError extends ApplicationError {
-  constructor(capability: string) {
+  constructor(capability: string, options?: ErrorOptions) {
     super('SERVICE_UNAVAILABLE', 503, `The ${capability} capability is not configured.`, true);
     this.name = 'DependencyUnavailableError';
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
   }
 }
 

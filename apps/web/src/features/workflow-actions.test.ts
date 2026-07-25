@@ -67,7 +67,7 @@ describe('workflow action payloads', () => {
 
     expect(screen.getByLabelText('Rule profile version')).toHaveValue('mvp-v1.0');
     expect(screen.getByLabelText('Ranking profile version')).toHaveValue('mvp-v1.0');
-    expect(screen.getByLabelText(/Enable local MHCflurry/)).toBeChecked();
+    expect(screen.getByLabelText(/Enable local MHCflurry/)).not.toBeChecked();
 
     await userEvent.click(screen.getByRole('button', { name: 'Create configuration draft' }));
 
@@ -75,7 +75,7 @@ describe('workflow action payloads', () => {
       expect.objectContaining({
         analysis: expect.objectContaining({
           mhci: expect.objectContaining({
-            methods: ['iedb-recommended', 'mhcflurry-presentation'],
+            methods: ['iedb-recommended'],
           }),
         }),
         ruleProfileVersion: 'mvp-v1.0',

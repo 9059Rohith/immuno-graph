@@ -12,6 +12,7 @@ import { ScientificWorkflowService } from './scientific-workflow-service.js';
 import type { scientificBindingDataSchema } from './scientific-workflow-contracts.js';
 import { createMigratedTestDatabase } from './test-context.test-support.js';
 import { UnavailableWorkflowExecutionPort } from './ports.js';
+import { DependencyUnavailableError } from './errors.js';
 
 type BindingResult = z.infer<typeof scientificBindingDataSchema>;
 
@@ -136,9 +137,105 @@ describe('scientific workflow prediction cache', () => {
     const executions = await database.repositories.predictorExecutions.listByRun(secondRunId);
     expect(executions.map(({ sourceStatus }) => sourceStatus)).toContain('CACHED');
   }, 30_000);
+
+  it('replays an exact approved fixture without calling the remote MCP gateway', async () => {
+    const runId = await createRunningRun({
+      requestedExecutionMode: 'FIXTURE',
+      fallbackPolicy: 'FIXTURE_ONLY',
+    });
+    let fixtureStarted = false;
+    const workflow = new ScientificWorkflowService(
+      database.repositories,
+      database.transactionManager,
+      {
+        assertAvailable: async () => {
+          throw new Error('remote MCP should not be required for fixture-only replay');
+        },
+        call: async () => {
+          throw new Error('remote MCP should not be called for fixture-only replay');
+        },
+      },
+      {
+        assertAvailable: async () => undefined,
+        start: async ({ runId: startedRunId }) => {
+          fixtureStarted = startedRunId === runId;
+        },
+        cancel: async () => undefined,
+        retry: async () => undefined,
+      },
+      true,
+      fixedClock(),
+    );
+
+    await workflow.start({ runId, requestId: 'fixture-only' });
+
+    expect(fixtureStarted).toBe(true);
+  });
+
+  it('falls through to fixture replay when MCP is unavailable under AUTO policy', async () => {
+    const runId = await createRunningRun({
+      requestedExecutionMode: 'AUTO',
+      fallbackPolicy: 'CACHE_THEN_LIVE_THEN_FIXTURE',
+    });
+    let fixtureStarted = false;
+    const workflow = new ScientificWorkflowService(
+      database.repositories,
+      database.transactionManager,
+      {
+        assertAvailable: async () => {
+          throw new DependencyUnavailableError('NitroStack MCP server');
+        },
+        call: async () => {
+          throw new Error('remote MCP call should be skipped after failed preflight');
+        },
+      },
+      {
+        assertAvailable: async () => undefined,
+        start: async ({ runId: startedRunId }) => {
+          fixtureStarted = startedRunId === runId;
+        },
+        cancel: async () => undefined,
+        retry: async () => undefined,
+      },
+      true,
+      fixedClock(),
+    );
+
+    await workflow.start({ runId, requestId: 'auto-mcp-down' });
+
+    expect(fixtureStarted).toBe(true);
+  });
+
+  it('persists a synthetic run for arbitrary non-fixture proteins', async () => {
+    const runId = await createRunningRun({
+      requestedExecutionMode: 'SYNTHETIC',
+      fallbackPolicy: 'CACHE_THEN_LIVE_THEN_FIXTURE',
+    });
+    const gateway = createGateway(liveBindingResult, { synthetic: true });
+    const workflow = new ScientificWorkflowService(
+      database.repositories,
+      database.transactionManager,
+      gateway.gateway,
+      new UnavailableWorkflowExecutionPort(),
+      true,
+      fixedClock(),
+    );
+
+    await workflow.start({ runId, requestId: 'synthetic-arbitrary' });
+
+    const run = await database.repositories.runs.findDetailById(runId);
+    const executions = await database.repositories.predictorExecutions.listByRun(runId);
+    const candidates = await database.repositories.candidates.listByRun(runId);
+    expect(run?.executionMode).toBe('SYNTHETIC');
+    expect(executions.every(({ sourceStatus }) => sourceStatus === 'SYNTHETIC')).toBe(true);
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(gateway.calls).toContain('predict_synthetic_binding');
+  });
 });
 
-async function createRunningRun(): Promise<string> {
+async function createRunningRun(
+  overrides: Partial<typeof runConfiguration> = {},
+): Promise<string> {
   const project = await database.repositories.projects.create({
     name: `Cache workflow ${randomUUID()}`,
     organism: 'Synthetic organism',
@@ -158,7 +255,7 @@ async function createRunningRun(): Promise<string> {
     loadProfileVersion('ranking', 'mvp-v1.0'),
   ]);
   const snapshot = {
-    request: runConfiguration,
+    request: { ...runConfiguration, ...overrides },
     profiles: {
       biologicalConstraints: biologicalConstraints.metadata,
       ranking: ranking.metadata,
@@ -172,9 +269,9 @@ async function createRunningRun(): Promise<string> {
     status: 'RUNNING',
     configurationJson,
     configurationHash: sha256(configurationJson),
-    ruleProfileVersion: runConfiguration.ruleProfileVersion,
-    rankingProfileVersion: runConfiguration.rankingProfileVersion,
-    requestedExecutionMode: runConfiguration.requestedExecutionMode,
+    ruleProfileVersion: (snapshot.request as typeof runConfiguration).ruleProfileVersion,
+    rankingProfileVersion: (snapshot.request as typeof runConfiguration).rankingProfileVersion,
+    requestedExecutionMode: (snapshot.request as typeof runConfiguration).requestedExecutionMode,
     startedAt: fixedClock()(),
   });
   return run.id;
@@ -182,7 +279,7 @@ async function createRunningRun(): Promise<string> {
 
 function createGateway(
   bindingResult: BindingResult,
-  options: { failLivePrediction?: boolean } = {},
+  options: { failLivePrediction?: boolean; synthetic?: boolean } = {},
 ): { gateway: McpToolGateway; calls: string[] } {
   const calls: string[] = [];
   return {
@@ -194,13 +291,21 @@ function createGateway(
         if (toolName === 'predict_mhci' && options.failLivePrediction === true) {
           throw new Error('Live prediction should not be called on cache hit.');
         }
-        return toolResult(toolName, schema.parse(resolveToolData(toolName, input, bindingResult)));
+        return toolResult(
+          toolName,
+          schema.parse(resolveToolData(toolName, input, bindingResult, options)),
+        );
       },
     },
   };
 }
 
-function resolveToolData(toolName: string, input: unknown, bindingResult: BindingResult): unknown {
+function resolveToolData(
+  toolName: string,
+  input: unknown,
+  bindingResult: BindingResult,
+  options: { synthetic?: boolean } = {},
+): unknown {
   switch (toolName) {
     case 'validate_sequence':
       return {
@@ -212,9 +317,62 @@ function resolveToolData(toolName: string, input: unknown, bindingResult: Bindin
       };
     case 'predict_mhci':
       return bindingResult;
+    case 'generate_candidate_peptides':
+      return {
+        candidates: [
+          {
+            candidateRef: 'synthetic-candidate-1',
+            candidateType: 'MHCI',
+            peptide: 'ACDEFGHIK',
+            start: 1,
+            end: 9,
+            length: 9,
+          },
+        ],
+      };
+    case 'predict_synthetic_binding':
+      return {
+        observations: [
+          {
+            observationId: 'synthetic-observation-1',
+            candidateRef: 'synthetic-candidate-1',
+            candidateType: 'MHCI',
+            peptide: 'ACDEFGHIK',
+            start: 1,
+            end: 9,
+            length: 9,
+            allele: 'HLA-A*02:01',
+            method: 'synthetic-binding',
+            methodVersion: '1.0.0',
+            rawScore: 0.74,
+            percentileRank: 1.2,
+            normalizedScore: 0.988,
+            rawFields: { predictionSource: 'SYNTHETIC', scientificUse: false },
+          },
+        ],
+        provenance: {
+          connectorId: 'immunograph-synthetic-predictor',
+          connectorVersion: '1.0.0',
+          method: 'synthetic-binding',
+          methodVersion: '1.0.0',
+          status: 'SYNTHETIC',
+          sourceUri: 'https://immunograph.local/synthetic-predictor',
+          parameters: { candidateType: 'MHCI' },
+          predictionSource: 'SYNTHETIC',
+          scientificUse: false,
+          validationStatus: 'DEMONSTRATION_ONLY',
+          algorithm: 'DeterministicSyntheticBindingPredictor',
+          algorithmVersion: '1.0.0',
+          datasetVersion: 'synthetic-v1',
+          datasetHash: '3'.repeat(64),
+        },
+      };
     case 'normalize_scores':
       return {
-        values: bindingResult.observations.map((observation) => ({
+        values: (options.synthetic
+          ? [{ observationId: 'synthetic-observation-1' }]
+          : bindingResult.observations
+        ).map((observation) => ({
           observationId: observation.observationId,
           normalizedScore: 0.995,
           transformation: { kind: 'INVERSE_PERCENTILE', cap: 100 },

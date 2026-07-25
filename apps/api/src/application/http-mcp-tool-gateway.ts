@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { z } from 'zod';
+import { ZodError } from 'zod';
 
 import { DependencyUnavailableError } from './errors.js';
 import {
@@ -79,7 +80,10 @@ export class HttpMcpToolGateway implements McpToolGateway {
       if (error instanceof DependencyUnavailableError || error instanceof McpToolCallError) {
         throw error;
       }
-      throw new DependencyUnavailableError('NitroStack MCP server');
+      if (error instanceof ZodError) {
+        throw error;
+      }
+      throw new DependencyUnavailableError('NitroStack MCP server', { cause: error });
     } finally {
       await client.close().catch(() => undefined);
     }

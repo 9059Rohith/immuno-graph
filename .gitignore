@@ -15,3 +15,5 @@ artifacts/
 data/generated/*
 !data/generated/README.md
 apps/web/.vite/
+.superpowers/
+.tmp-dev-logs/

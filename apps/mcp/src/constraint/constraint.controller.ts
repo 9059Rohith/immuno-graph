@@ -20,7 +20,6 @@ import {
   identifierSchema,
   ruleOutcomeSchema,
   sha256Schema,
-  toolResultSchema,
   unitIntervalSchema,
 } from '../common/contracts.js';
 import { executeTool, ToolExecutionError } from '../common/executor.js';
@@ -218,7 +217,6 @@ export class ConstraintController {
     description:
       'Detect positional overlap competitors and connected components without resolving them.',
     inputSchema: overlapInput,
-    outputSchema: toolResultSchema(overlapData),
     examples: {
       request: { runId: 'example-run', threshold: 0.8, candidates: [overlapExample] },
       response: fail('detect_overlapping_epitopes'),
@@ -241,7 +239,6 @@ export class ConstraintController {
     description:
       'Canonicalize exact duplicate identities while preserving identical peptides at different coordinates.',
     inputSchema: duplicateInput,
-    outputSchema: toolResultSchema(duplicateData),
     examples: {
       request: { runId: 'example-run', proteinHash: hash, candidates: [duplicateExample] },
       response: fail('remove_duplicate_candidates'),
@@ -265,7 +262,6 @@ export class ConstraintController {
     name: 'validate_thresholds',
     description: 'Evaluate documented hard biological thresholds and emit rule outcomes.',
     inputSchema: thresholdsInput,
-    outputSchema: toolResultSchema(thresholdsData),
     examples: {
       request: { runId: 'example-run', ruleProfileVersion: 'mvp-v1.0', candidates: [baseExample] },
       response: fail('validate_thresholds'),
@@ -293,7 +289,6 @@ export class ConstraintController {
     description:
       'Assign deterministic decision categories and confidence after scoring and constraints.',
     inputSchema: categorizeInput,
-    outputSchema: toolResultSchema(categorizeData),
     examples: {
       request: {
         runId: 'example-run',
@@ -351,7 +346,6 @@ export class ConstraintController {
     name: 'apply_constraint_rules',
     description: 'Apply base, duplicate, and overlap rules to one immutable candidate snapshot.',
     inputSchema: applyInput,
-    outputSchema: toolResultSchema(applyData),
     examples: {
       request: {
         runId: 'example-run',

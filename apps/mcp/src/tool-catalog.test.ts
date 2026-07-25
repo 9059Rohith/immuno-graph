@@ -91,22 +91,23 @@ describe('MCP tool catalog', () => {
     expect(tools.map((tool) => tool.name).sort()).toEqual(EXPECTED_TOOL_NAMES);
     const discovered = await Promise.all(tools.map((tool) => tool.toMcpTool()));
     expect(discovered.every((tool) => tool.inputSchema.type === 'object')).toBe(true);
-    expect(discovered.every((tool) => tool.outputSchema?.type === 'object')).toBe(true);
+    expect(discovered.every((tool) => tool.outputSchema === undefined)).toBe(true);
   });
 
-  it('provides positive and negative input schema cases plus valid output examples', () => {
+  it('provides positive and negative input schema cases plus deterministic envelope examples', () => {
     for (const tool of tools) {
       const inputSchema = tool.inputSchema as z.ZodType;
-      const outputSchema = tool.outputSchema as z.ZodType;
       expect(tool.examples?.request, `${tool.name} request example`).toBeDefined();
       expect(
         inputSchema.safeParse(tool.examples?.request).success,
         `${tool.name} positive input`,
       ).toBe(true);
       expect(inputSchema.safeParse({}).success, `${tool.name} negative input`).toBe(false);
-      expect(outputSchema.safeParse(tool.examples?.response).success, `${tool.name} output`).toBe(
-        true,
-      );
+      expect(tool.examples?.response, `${tool.name} output envelope`).toMatchObject({
+        ok: false,
+        error: expect.objectContaining({ code: expect.any(String) }),
+        meta: expect.objectContaining({ toolName: tool.name }),
+      });
     }
   });
 

@@ -8,7 +8,7 @@ import {
   Play,
   RefreshCw,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -180,15 +180,16 @@ export function CreateProjectPage() {
   const [description, setDescription] = useState('');
   const [fasta, setFasta] = useState('');
 
-  useEffect(() => {
-    const selected = approvedFixturePresets[preset];
+  const applyPreset = (value: keyof typeof approvedFixturePresets) => {
+    setPreset(value);
+    const selected = approvedFixturePresets[value];
     if (selected === null) return;
     setName(selected.name);
     setOrganism(selected.organism);
     setProteinName(selected.proteinName);
     setDescription(selected.description);
     setFasta(selected.fasta);
-  }, [preset]);
+  };
 
   return (
     <>
@@ -219,7 +220,7 @@ export function CreateProjectPage() {
               <FieldLabel htmlFor="fixture-preset">Demo fixture preset</FieldLabel>
               <Select
                 value={preset}
-                onValueChange={(value) => setPreset(value as keyof typeof approvedFixturePresets)}
+                onValueChange={(value) => applyPreset(value as keyof typeof approvedFixturePresets)}
               >
                 <SelectTrigger id="fixture-preset">
                   <SelectValue placeholder="Choose a preset or keep custom" />
@@ -487,7 +488,7 @@ export function ProjectSettingsPage() {
             helper="You can type your own comma-separated lengths too."
           />
           <label className="flex items-start gap-2 text-sm">
-            <input defaultChecked name="enableMhcflurry" type="checkbox" />
+            <input name="enableMhcflurry" type="checkbox" />
             <span>
               Enable local MHCflurry MHC-I live predictor
               <span className="block text-xs text-muted-foreground">

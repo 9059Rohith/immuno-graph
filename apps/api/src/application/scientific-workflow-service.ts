@@ -48,6 +48,15 @@ import { WORKFLOW_STAGE_DEFINITIONS } from './workflow-definition.js';
 const SYNTHETIC_DISCLOSURE =
   'Generated using deterministic offline demonstration predictors. These values are not validated biological predictions and must not be used for scientific or clinical interpretation.';
 const BINDING_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const REQUIRED_MCP_WORKFLOW_TOOLS = [
+  'validate_sequence',
+  'generate_candidate_peptides',
+  'normalize_scores',
+  'compute_consensus_batch',
+  'validate_thresholds',
+  'apply_constraint_rules',
+  'rank_candidates',
+] as const;
 
 interface WorkingObservation {
   id: string;
@@ -132,19 +141,24 @@ export class ScientificWorkflowService implements WorkflowExecutionPort {
     if (plan.length === 0) throw new DependencyUnavailableError('selected execution mode');
 
     let lastFailure: unknown;
-    for (const source of plan) {
+    let effectivePlan = plan;
+    if (plan.some((source) => source !== 'FIXTURE')) {
+      try {
+        await this.gateway.assertAvailable(REQUIRED_MCP_WORKFLOW_TOOLS);
+      } catch (error) {
+        lastFailure = error;
+        if (!isFallbackEligible(error)) throw error;
+        effectivePlan = plan.filter((source) => source === 'FIXTURE');
+        if (effectivePlan.length === 0) throw error;
+      }
+    }
+    for (const source of effectivePlan) {
       if (source === 'FIXTURE') {
         try {
-          const result = await this.executePipeline(source, command, protein, configuration);
-          await this.persist(command, protein.sha256, configuration, result);
+          await this.fixtureFallback.start(command);
           return;
-        } catch {
-          try {
-            await this.fixtureFallback.start(command);
-            return;
-          } catch (fallbackError) {
-            lastFailure = fallbackError;
-          }
+        } catch (fallbackError) {
+          lastFailure = fallbackError;
         }
         continue;
       }
@@ -187,15 +201,7 @@ export class ScientificWorkflowService implements WorkflowExecutionPort {
       return result;
     };
 
-    await this.gateway.assertAvailable([
-      'validate_sequence',
-      'generate_candidate_peptides',
-      'normalize_scores',
-      'compute_consensus_batch',
-      'validate_thresholds',
-      'apply_constraint_rules',
-      'rank_candidates',
-    ]);
+    await this.gateway.assertAvailable(REQUIRED_MCP_WORKFLOW_TOOLS);
     const validated = await call(
       'validate_sequence',
       { fasta: protein.originalFasta, profileVersion: 'mvp-v1.0' },

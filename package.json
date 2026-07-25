@@ -21,6 +21,8 @@
     "build": "npm run build:types && npm run build --workspace @immunograph/web",
     "build:types": "tsc -b",
     "dev": "concurrently --kill-others-on-fail --names web,api,mcp \"npm run dev --workspace @immunograph/web\" \"npm run dev --workspace @immunograph/api\" \"npm run dev --workspace @immunograph/mcp\"",
+    "dev:status": "node scripts/dev-status.mjs",
+    "dev:stop": "node scripts/dev-stop.mjs",
     "mcp:build": "npm run build --workspace @immunograph/mcp",
     "mcp:dev": "npm run dev --workspace @immunograph/mcp",
     "mcp:start": "npm run start --workspace @immunograph/mcp",
