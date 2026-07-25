@@ -17,7 +17,7 @@
     "apps/mcp"
   ],
   "scripts": {
-    "postinstall": "npm run db:generate",
+    "prebuild": "npm install --ignore-scripts --engine-strict=false && npm run db:generate",
     "predev": "npm run db:migrate --workspace @immunograph/database",
     "build": "npm run build:types && npm run build --workspace @immunograph/web",
     "build:types": "tsc -b",
