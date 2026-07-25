@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { EmptyState, ErrorState, LoadingState } from '@/components/page-state';
 import { SourceStatusBadge } from '@/components/source-status-badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -141,7 +142,9 @@ function DashboardData({ data }: { data: NonNullable<ReturnType<typeof useProjec
                       {[project.organism, project.proteinName].filter(Boolean).join(' · ') ||
                         'Not specified'}
                     </TableCell>
-                    <TableCell>{project.latestRun?.status ?? 'No runs'}</TableCell>
+                    <TableCell>
+                      <RunStatusIndicator status={project.latestRun?.status} />
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {project.sourceMix.map((source) => (
@@ -162,6 +165,56 @@ function DashboardData({ data }: { data: NonNullable<ReturnType<typeof useProjec
         </CardContent>
       </Card>
     </>
+  );
+}
+
+function RunStatusIndicator({ status }: { status: string | null | undefined }) {
+  if (!status) return <Badge variant="outline">No runs</Badge>;
+
+  const normalized = status.toUpperCase();
+  const isActive = normalized === 'QUEUED' || normalized === 'RUNNING';
+  const label =
+    normalized === 'QUEUED'
+      ? 'Queued'
+      : normalized === 'RUNNING'
+        ? 'Running'
+        : normalized === 'COMPLETED'
+          ? 'Complete'
+          : normalized === 'FAILED'
+            ? 'Failed'
+            : normalized === 'CANCELLED'
+              ? 'Cancelled'
+              : normalized
+                  .toLowerCase()
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, (character) => character.toUpperCase());
+
+  const variant =
+    normalized === 'RUNNING'
+      ? 'running'
+      : normalized === 'QUEUED'
+        ? 'partial'
+        : normalized === 'COMPLETED'
+          ? 'live'
+          : normalized === 'FAILED'
+            ? 'failed'
+            : 'outline';
+
+  return (
+    <div className="grid gap-1">
+      <Badge variant={variant}>
+        <span
+          aria-hidden="true"
+          className={isActive ? 'size-2 rounded-full bg-current animate-pulse' : 'size-2 rounded-full bg-current'}
+        />
+        {label}
+      </Badge>
+      {isActive ? (
+        <span className="text-xs text-muted-foreground">
+          {normalized === 'QUEUED' ? 'Waiting to start' : 'Still running'}
+        </span>
+      ) : null}
+    </div>
   );
 }
 
