@@ -13,8 +13,9 @@ This checklist mirrors [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md). Check a
 - `npm run db:migrate`: passed against a clean temporary SQLite database. The default `packages/database/prisma/immunograph.db` was locked during one verification attempt, which usually means a local API/dev process or SQLite handle was still open.
 - `npm run connectors:check:iedb`: passed against the live IEDB MHC-I tools API.
 - `npm run connectors:check:mhcflurry`: passed against the local `.venv-mhcflurry` install.
+- `npm run connectors:check:iedb-population`: available after installing IEDB's official standalone population-coverage package.
 
-Implementation status summary: the offline fixture/synthetic path, REST API, MCP tools, database repositories, core algorithms, project dashboard, workflow graph, evidence graph, candidate review, shortlist approval, diagnostics, JSON/CSV report artifacts, evidence-graph/workflow-trace artifact exports, API liveness probe, and API-owned `LIVE -> CACHED` reuse are implemented and verified by automated tests. IEDB MHC-I/MHC-II live adapter code, optional local MHCflurry MHC-I adapter code, mixed-method hybrid routing, and local MHCflurry CLI/model smoke verification are present, but official population coverage, public deployment hardening, and full browser/E2E rehearsal remain incomplete.
+Implementation status summary: the offline fixture/synthetic path, REST API, MCP tools, database repositories, core algorithms, project dashboard, workflow graph, evidence graph, candidate review, shortlist approval, diagnostics, JSON/CSV report artifacts, evidence-graph/workflow-trace artifact exports, API liveness probe, API-owned `LIVE -> CACHED` reuse, IEDB MHC-I/MHC-II live adapters, optional local MHCflurry MHC-I adapter, official IEDB standalone population-coverage adapter, and mixed-method hybrid routing are implemented. Public deployment hardening and full browser/E2E rehearsal remain incomplete.
 
 ## Phase 0 — Foundation
 
@@ -149,7 +150,9 @@ live cache, and never be presented as provider-produced, experimental, clinical,
 - [x] Add repeatable `npm run connectors:install:mhcflurry` and `npm run connectors:check:mhcflurry` commands.
 - [x] Install and verify MHCflurry CLI/models in the local development runtime.
 - [ ] Install and verify MHCflurry CLI/models in the production deployment runtime before enabling `MHCFLURRY_ENABLED=true` there.
-- [ ] Configure and verify `IEDB_POPULATION_COVERAGE_URL` in the production deployment runtime before enabling `IEDB_POPULATION_COVERAGE_ENABLED=true` there.
+- [x] Add official IEDB standalone population-coverage connector behind `IEDB_POPULATION_COVERAGE_ENABLED`.
+- [x] Add repeatable `npm run connectors:install:iedb-population` and `npm run connectors:check:iedb-population` commands.
+- [ ] Verify IEDB population coverage package installation in the production deployment runtime.
 - [ ] Register score profiles for each enabled method/version.
 - [x] Add parser samples and tests.
 - [x] Verify `LIVE -> CACHED` behavior.

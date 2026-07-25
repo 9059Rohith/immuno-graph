@@ -229,6 +229,42 @@ describe('HybridBindingCapabilityPort', () => {
     expect(populationRequest).toHaveBeenCalledOnce();
   });
 
+  it('routes population coverage to the official IEDB standalone CLI when configured', async () => {
+    const populationRunner = vi.fn().mockResolvedValue({
+      stdout: [
+        'class I',
+        'population/area\tcoverage\taverage_hit\tpc90',
+        'World\t66.0%\t1.2\t0.4',
+        'average\t66.0%\t1.2\t0.4',
+      ].join('\n'),
+      stderr: '',
+    });
+    const port = new HybridBindingCapabilityPort({
+      iedb: { enabled: false },
+      iedbPopulationCoverage: {
+        enabled: true,
+        scriptPath: 'C:/iedb/population_coverage/calculate_population_coverage.py',
+        runner: populationRunner,
+      },
+    });
+
+    const result = (await port.invoke('calculate_population_coverage', {
+      runId: 'run-1',
+      associations: [{ candidateId: 'candidate-1', peptide: 'ACDEFGHIK', allele: 'HLA-A*02:01' }],
+      populationIds: ['World'],
+      classMode: 'CLASS_I',
+      fallbackPolicy: 'LIVE_ONLY',
+    })) as { projectedCoverage: number; provenance: Record<string, unknown> };
+
+    expect(result.projectedCoverage).toBe(0.66);
+    expect(result.provenance).toMatchObject({
+      connectorId: 'iedb-population-coverage',
+      connectorVersion: 'local-standalone-cli-v1',
+      status: 'LIVE',
+    });
+    expect(populationRunner).toHaveBeenCalledOnce();
+  });
+
   it('falls back to fixture for population coverage when IEDB population is unavailable and policy permits', async () => {
     const populationRequest = vi
       .fn<typeof fetch>()

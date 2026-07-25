@@ -11,31 +11,63 @@ function envConfigured(name: string): boolean {
   return (process.env[name] ?? '').trim().length > 0;
 }
 
+function iedbPopulationCoverageLive(): boolean {
+  return (
+    envFlag('IEDB_POPULATION_COVERAGE_ENABLED') &&
+    (envConfigured('IEDB_POPULATION_COVERAGE_URL') ||
+      envConfigured('IEDB_POPULATION_COVERAGE_SCRIPT_PATH'))
+  );
+}
+
+function liveActiveForConnector(connectorId: string): boolean {
+  if (connectorId === 'mhcflurry') return envFlag('MHCFLURRY_ENABLED');
+  if (connectorId === 'iedb-population-coverage') return iedbPopulationCoverageLive();
+  return envFlag('IEDB_LIVE_ENABLED');
+}
+
+function liveMessage(connectorId: string): string {
+  if (connectorId === 'mhcflurry') {
+    return 'Local MHCflurry connector is enabled for MHC-I predictions; scientificUse=true.';
+  }
+  if (connectorId === 'iedb-population-coverage') {
+    return 'IEDB population coverage is enabled through a configured live endpoint or standalone tool; scientificUse=true.';
+  }
+  return 'Live IEDB connector is enabled; real predictions are available for research use.';
+}
+
+function degradedMessage(connectorId: string): string {
+  if (connectorId === 'mhcflurry') {
+    return 'MHCFLURRY_ENABLED=false - local MHCflurry predictions are disabled. Install MHCflurry/models and set MHCFLURRY_ENABLED=true to enable MHC-I local prediction.';
+  }
+  if (connectorId === 'iedb-population-coverage') {
+    return 'IEDB population coverage live mode is disabled or missing IEDB_POPULATION_COVERAGE_URL / IEDB_POPULATION_COVERAGE_SCRIPT_PATH; fixture fallback remains available.';
+  }
+  return 'IEDB_LIVE_ENABLED=false - running in offline/backup mode with fixture fallback. Set IEDB_LIVE_ENABLED=true to enable live predictions.';
+}
+
 export class LocalConnectorDiagnosticsPort implements ConnectorDiagnosticsPort {
   constructor(private readonly clock: () => Date = () => new Date()) {}
 
   async list() {
     const { connectorRegistry } = await loadReferenceBundle();
-    return connectorRegistry.connectors.map((connector) => ({
-      connectorId: connector.connectorId,
-      displayName: connector.displayName,
-      methods: connector.methods.map(({ method }) => method),
-      liveSupported: !connector.fixtureOnly && !connector.syntheticOnly,
-      fixtureOnly: connector.fixtureOnly,
-      licenseStatus:
-        connector.fixtureOnly || connector.syntheticOnly
-          ? ('APPROVED' as const)
-          : connector.connectorId === 'mhcflurry'
+    return connectorRegistry.connectors.map((connector) => {
+      const liveSupported = !connector.fixtureOnly && !connector.syntheticOnly;
+      const liveActive = liveSupported && liveActiveForConnector(connector.connectorId);
+      return {
+        connectorId: connector.connectorId,
+        displayName: connector.displayName,
+        methods: connector.methods.map(({ method }) => method),
+        liveSupported,
+        fixtureOnly: connector.fixtureOnly,
+        licenseStatus:
+          connector.fixtureOnly ||
+          connector.syntheticOnly ||
+          connector.connectorId === 'mhcflurry' ||
+          liveActive
             ? ('APPROVED' as const)
-            : connector.connectorId === 'iedb-population-coverage'
-              ? envFlag('IEDB_POPULATION_COVERAGE_ENABLED') &&
-                envConfigured('IEDB_POPULATION_COVERAGE_URL')
-                ? ('APPROVED' as const)
-                : ('RESTRICTED' as const)
-              : envFlag('IEDB_LIVE_ENABLED')
-                ? ('APPROVED' as const)
-                : ('RESTRICTED' as const),
-    }));
+            : ('RESTRICTED' as const),
+      };
+    });
   }
 
   async health() {
@@ -43,14 +75,7 @@ export class LocalConnectorDiagnosticsPort implements ConnectorDiagnosticsPort {
     const checkedAt = this.clock().toISOString();
     return connectorRegistry.connectors.map((connector) => {
       const isLiveConnector = !connector.fixtureOnly && !connector.syntheticOnly;
-      const liveActive =
-        isLiveConnector &&
-        (connector.connectorId === 'mhcflurry'
-          ? envFlag('MHCFLURRY_ENABLED')
-          : connector.connectorId === 'iedb-population-coverage'
-            ? envFlag('IEDB_POPULATION_COVERAGE_ENABLED') &&
-              envConfigured('IEDB_POPULATION_COVERAGE_URL')
-            : envFlag('IEDB_LIVE_ENABLED'));
+      const liveActive = isLiveConnector && liveActiveForConnector(connector.connectorId);
       return {
         connectorId: connector.connectorId,
         health: liveActive
@@ -67,14 +92,10 @@ export class LocalConnectorDiagnosticsPort implements ConnectorDiagnosticsPort {
         message: connector.syntheticOnly
           ? 'Deterministic offline demonstration connector is available; scientificUse=false.'
           : liveActive
-            ? connector.connectorId === 'mhcflurry'
-              ? 'Local MHCflurry connector is enabled for MHC-I predictions; scientificUse=true.'
-              : 'Live IEDB connector is enabled; real predictions are available for research use.'
+            ? liveMessage(connector.connectorId)
             : connector.fixtureOnly
               ? 'Approved local synthetic fixture is available.'
-              : connector.connectorId === 'mhcflurry'
-                ? 'MHCFLURRY_ENABLED=false — local MHCflurry predictions are disabled. Install MHCflurry/models and set MHCFLURRY_ENABLED=true to enable MHC-I local prediction.'
-                : 'IEDB_LIVE_ENABLED=false \u2014 running in offline/backup mode with fixture fallback. Set IEDB_LIVE_ENABLED=true to enable live predictions.',
+              : degradedMessage(connector.connectorId),
       };
     });
   }

@@ -162,7 +162,7 @@ Implement one connector at a time; each is disabled by default until its checkli
 
 GraphBepi is intentionally absent from this live-connector phase. Its MVP implementation is the fixture-only adapter delivered in Phase 3.
 
-Current implementation note: IEDB MHC-I/MHC-II adapter code, local MHCflurry MHC-I adapter code, parser tests, mixed-method hybrid fallback routing, and API-owned `LIVE -> CACHED` reuse are present. Official population coverage remains incomplete.
+Current implementation note: IEDB MHC-I/MHC-II adapter code, local MHCflurry MHC-I adapter code, official IEDB standalone population-coverage adapter code, parser tests, mixed-method hybrid fallback routing, and API-owned `LIVE -> CACHED` reuse are present.
 
 ### Per-connector deliverables
 

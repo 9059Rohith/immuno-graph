@@ -32,7 +32,7 @@ interface PredictorInput {
 }
 
 interface PopulationCoverageInput {
-  associations: Array<{ candidateId: string; allele: string }>;
+  associations: Array<{ candidateId: string; peptide?: string; allele: string }>;
   populationIds: string[];
   classMode: 'CLASS_I' | 'CLASS_II' | 'COMBINED';
   fallbackPolicy: string;

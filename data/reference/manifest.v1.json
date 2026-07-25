@@ -54,7 +54,7 @@
       "id": "connector-registry",
       "version": "v1",
       "path": "connector-registry.v1.json",
-      "sha256": "551a8085c084736cc29a71fbdecb5c64d4d407e8534bfed5b7a050015d08d607",
+      "sha256": "f43510a856b11ac3d669273ee7cde37e38b58899a07e8a4afd8a164177fa07a4",
       "sourceName": "ImmunoGraph MVP connector registry",
       "sourceUrl": "https://tools.iedb.org/main/tools-api/",
       "retrievedAt": "2026-07-24T00:00:00.000Z",

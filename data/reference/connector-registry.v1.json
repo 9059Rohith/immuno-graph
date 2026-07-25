@@ -56,11 +56,11 @@
     },
     {
       "connectorId": "iedb-population-coverage",
-      "connectorVersion": "web-v1",
+      "connectorVersion": "local-standalone-cli-v1",
       "displayName": "IEDB Population Coverage",
       "enabledByDefault": false,
       "fixtureOnly": false,
-      "sourceUrl": "https://tools.iedb.org/population/",
+      "sourceUrl": "https://tools.iedb.org/population/download/",
       "methods": [
         {
           "method": "iedb-population-coverage",

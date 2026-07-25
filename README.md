@@ -150,8 +150,9 @@ HOST=0.0.0.0
 PORT=3001
 MCP_TRANSPORT_TYPE=dual
 IEDB_LIVE_ENABLED=true
-IEDB_POPULATION_COVERAGE_ENABLED=false
-# IEDB_POPULATION_COVERAGE_URL=https://your-configured-iedb-population-endpoint.example/api
+IEDB_POPULATION_COVERAGE_ENABLED=true
+IEDB_POPULATION_COVERAGE_SCRIPT_PATH=/opt/iedb/population_coverage/calculate_population_coverage.py
+IEDB_POPULATION_COVERAGE_PYTHON_COMMAND=python3
 MHCFLURRY_ENABLED=false
 DEMO_MODE=true
 ```
@@ -173,9 +174,10 @@ docker run --rm -p 3001:3001 --env-file .env.production.example immunograph-mcp
 The initial cloud deployment should keep `MHCFLURRY_ENABLED=false` unless the
 runtime has Python, the MHCflurry CLI, and downloaded models installed. IEDB is
 the primary live cloud connector because it only requires outbound HTTPS.
-Population coverage uses an optional configurable IEDB HTTP endpoint; keep
-`IEDB_POPULATION_COVERAGE_ENABLED=false` until `IEDB_POPULATION_COVERAGE_URL`
-has been configured and verified in the deployment runtime.
+Population coverage uses IEDB's official standalone Python package because the
+stable Tools API does not publish it as a normal REST endpoint. The MCP Docker
+image installs that package under `/opt/iedb`; local development can install it
+with `npm run connectors:install:iedb-population`.
 
 ## Technology baseline
 
@@ -215,7 +217,7 @@ docs/                  Generated diagrams and future operational guides
 
 - [NitroStack documentation](https://docs.nitrostack.ai/)
 - [IEDB Tools API](https://tools.iedb.org/main/tools-api/)
-- [IEDB Population Coverage](https://tools.iedb.org/population/)
+- [IEDB Population Coverage standalone package](https://tools.iedb.org/population/download/)
 - [MHCflurry documentation](https://openvax.github.io/mhcflurry/)
 - [GraphBepi publication and implementation reference](https://pubmed.ncbi.nlm.nih.gov/37039829/)
 

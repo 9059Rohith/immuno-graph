@@ -27,6 +27,10 @@ export function buildDefaultCapabilityPort(): CapabilityPort {
       timeoutMs: env.IEDB_POPULATION_COVERAGE_TIMEOUT_MS,
       maximumResponseBytes: env.IEDB_POPULATION_COVERAGE_MAX_RESPONSE_BYTES,
       ...(env.IEDB_POPULATION_COVERAGE_URL ? { url: env.IEDB_POPULATION_COVERAGE_URL } : {}),
+      ...(env.IEDB_POPULATION_COVERAGE_SCRIPT_PATH
+        ? { scriptPath: env.IEDB_POPULATION_COVERAGE_SCRIPT_PATH }
+        : {}),
+      pythonCommand: env.IEDB_POPULATION_COVERAGE_PYTHON_COMMAND,
     },
     mhcflurry: {
       enabled: env.MHCFLURRY_ENABLED,

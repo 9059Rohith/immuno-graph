@@ -37,12 +37,18 @@ describe('MCP environment', () => {
       NODE_ENV: 'production',
       IEDB_POPULATION_COVERAGE_ENABLED: 'true',
       IEDB_POPULATION_COVERAGE_URL: 'https://example.test/iedb/population',
+      IEDB_POPULATION_COVERAGE_SCRIPT_PATH:
+        'C:/iedb/population_coverage/calculate_population_coverage.py',
+      IEDB_POPULATION_COVERAGE_PYTHON_COMMAND: 'python3',
       IEDB_POPULATION_COVERAGE_TIMEOUT_MS: '5000',
     };
 
     expect(loadMcpEnvironment()).toMatchObject({
       IEDB_POPULATION_COVERAGE_ENABLED: true,
       IEDB_POPULATION_COVERAGE_URL: 'https://example.test/iedb/population',
+      IEDB_POPULATION_COVERAGE_SCRIPT_PATH:
+        'C:/iedb/population_coverage/calculate_population_coverage.py',
+      IEDB_POPULATION_COVERAGE_PYTHON_COMMAND: 'python3',
       IEDB_POPULATION_COVERAGE_TIMEOUT_MS: 5000,
     });
   });

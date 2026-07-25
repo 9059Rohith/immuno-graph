@@ -472,7 +472,9 @@ export class ScientificWorkflowService implements WorkflowExecutionPort {
     call: <T>(name: string, input: unknown, schema: z.ZodType<T>) => Promise<McpToolResult<T>>;
   }): Promise<WorkingShortlistOptimization[]> {
     if (input.configuration.populations.length === 0) return [];
-    const rankingByRef = new Map(input.finalRanking.map((ranking) => [ranking.candidateId, ranking]));
+    const rankingByRef = new Map(
+      input.finalRanking.map((ranking) => [ranking.candidateId, ranking]),
+    );
     const optimizations: WorkingShortlistOptimization[] = [];
     for (const track of ['MHCI', 'MHCII'] as const) {
       if (!trackEnabled(input.configuration, track)) continue;
@@ -800,7 +802,11 @@ export class ScientificWorkflowService implements WorkflowExecutionPort {
           'calculate_synthetic_population_coverage',
           {
             runId: command.runId,
-            associations: [{ candidateId: alleleCandidates[0]!.ref, allele }],
+            associations: alleleCandidates.map((candidate) => ({
+              candidateId: candidate.ref,
+              peptide: candidate.peptide,
+              allele,
+            })),
             populationIds: configuration.populations,
             classMode,
           },
@@ -818,7 +824,11 @@ export class ScientificWorkflowService implements WorkflowExecutionPort {
           'calculate_population_coverage',
           {
             runId: command.runId,
-            associations: [{ candidateId: alleleCandidates[0]!.ref, allele }],
+            associations: alleleCandidates.map((candidate) => ({
+              candidateId: candidate.ref,
+              peptide: candidate.peptide,
+              allele,
+            })),
             populationIds: configuration.populations,
             classMode,
             fallbackPolicy:
@@ -1278,10 +1288,12 @@ function withDefinedOptimizationMetadata(
   },
 ): WorkingShortlistOptimization['provenance'] {
   const enriched: WorkingShortlistOptimization['provenance'] = { ...provenance };
-  if (metadata.constructSequence !== undefined) enriched.constructSequence = metadata.constructSequence;
+  if (metadata.constructSequence !== undefined)
+    enriched.constructSequence = metadata.constructSequence;
   if (metadata.averageCandidateScore !== undefined)
     enriched.averageCandidateScore = metadata.averageCandidateScore;
-  if (metadata.redundancyPenalty !== undefined) enriched.redundancyPenalty = metadata.redundancyPenalty;
+  if (metadata.redundancyPenalty !== undefined)
+    enriched.redundancyPenalty = metadata.redundancyPenalty;
   if (metadata.objectiveScore !== undefined) enriched.objectiveScore = metadata.objectiveScore;
   if (metadata.confidence !== undefined) enriched.confidence = metadata.confidence;
   if (metadata.manufacturability !== undefined)

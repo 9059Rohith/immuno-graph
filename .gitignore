@@ -1,5 +1,6 @@
 node_modules/
 .venv*/
+.iedb-tools/
 dist/
 coverage/
 *.tsbuildinfo

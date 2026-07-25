@@ -44,4 +44,28 @@ describe('LocalConnectorDiagnosticsPort', () => {
       sourceStatus: 'FIXTURE',
     });
   });
+
+  it('reports IEDB population coverage as live when the standalone script is configured', async () => {
+    vi.stubEnv('IEDB_POPULATION_COVERAGE_ENABLED', 'true');
+    vi.stubEnv(
+      'IEDB_POPULATION_COVERAGE_SCRIPT_PATH',
+      'C:/iedb/population_coverage/calculate_population_coverage.py',
+    );
+
+    const port = new LocalConnectorDiagnosticsPort(() => new Date('2026-07-24T00:00:00.000Z'));
+    const connectors = await port.list();
+    const health = await port.health();
+
+    expect(
+      connectors.find(({ connectorId }) => connectorId === 'iedb-population-coverage'),
+    ).toMatchObject({
+      licenseStatus: 'APPROVED',
+    });
+    expect(
+      health.find(({ connectorId }) => connectorId === 'iedb-population-coverage'),
+    ).toMatchObject({
+      health: 'AVAILABLE',
+      sourceStatus: 'LIVE',
+    });
+  });
 });

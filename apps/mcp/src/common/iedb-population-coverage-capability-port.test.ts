@@ -5,8 +5,8 @@ import { IedbPopulationCoverageCapabilityPort } from './iedb-population-coverage
 const input = {
   runId: 'run-1',
   associations: [
-    { candidateId: 'candidate-1', allele: 'HLA-A*02:01' },
-    { candidateId: 'candidate-2', allele: 'HLA-B*07:02' },
+    { candidateId: 'candidate-1', peptide: 'ACDEFGHIK', allele: 'HLA-A*02:01' },
+    { candidateId: 'candidate-2', peptide: 'LMNPQRSTV', allele: 'HLA-B*07:02' },
   ],
   populationIds: ['World'],
   classMode: 'CLASS_I',
@@ -62,7 +62,7 @@ describe('IedbPopulationCoverageCapabilityPort', () => {
     const port = new IedbPopulationCoverageCapabilityPort({ enabled: true, request });
 
     await expect(port.invoke('calculate_population_coverage', input)).rejects.toMatchObject({
-      code: 'IEDB_POPULATION_COVERAGE_URL_REQUIRED',
+      code: 'IEDB_POPULATION_COVERAGE_RUNTIME_REQUIRED',
       category: 'CONNECTOR',
       retryable: true,
     });
@@ -82,5 +82,83 @@ describe('IedbPopulationCoverageCapabilityPort', () => {
       category: 'RATE_LIMIT',
       retryable: true,
     });
+  });
+
+  it('maps the official IEDB standalone CLI table output to LIVE population coverage', async () => {
+    const runner = vi.fn().mockResolvedValue({
+      stdout: [
+        'class I',
+        'population/area\tcoverage\taverage_hit\tpc90',
+        'Japan\t71.2%\t1.34\t0.48',
+        'World\t63.4%\t1.12\t0.36',
+        'average\t67.3%\t1.23\t0.42',
+        'standard_deviation\t3.9%\t0.11\t0.06',
+        '',
+        'population/area\tepitope_hits\tpercent_individuals\tcumulative_coverage',
+        'Japan\t0\t28.8\t28.8',
+      ].join('\n'),
+      stderr: '',
+    });
+    const port = new IedbPopulationCoverageCapabilityPort({
+      enabled: true,
+      scriptPath: 'C:/iedb/population_coverage/calculate_population_coverage.py',
+      runner,
+    });
+
+    const result = (await port.invoke('calculate_population_coverage', input)) as {
+      projectedCoverage: number;
+      metrics: Record<string, unknown>;
+      provenance: Record<string, unknown>;
+    };
+
+    expect(result.projectedCoverage).toBe(0.673);
+    expect(result.metrics).toMatchObject({
+      averageHits: 1.23,
+      pc90: 0.42,
+      populations: [
+        { populationId: 'Japan', projectedCoverage: 0.712, averageHits: 1.34, pc90: 0.48 },
+        { populationId: 'World', projectedCoverage: 0.634, averageHits: 1.12, pc90: 0.36 },
+      ],
+    });
+    expect(result.provenance).toMatchObject({
+      connectorId: 'iedb-population-coverage',
+      connectorVersion: 'local-standalone-cli-v1',
+      method: 'iedb-population-coverage',
+      status: 'LIVE',
+      predictionSource: 'LIVE',
+      scientificUse: true,
+      validationStatus: 'SCIENTIFIC',
+    });
+    expect(runner).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        'C:/iedb/population_coverage/calculate_population_coverage.py',
+        '-p',
+        'World',
+        '-c',
+        'I',
+        '-f',
+      ]),
+      expect.objectContaining({ timeoutMs: 120_000 }),
+    );
+  });
+
+  it('requires peptide text for the official IEDB standalone CLI input file', async () => {
+    const runner = vi.fn();
+    const port = new IedbPopulationCoverageCapabilityPort({
+      enabled: true,
+      scriptPath: 'C:/iedb/population_coverage/calculate_population_coverage.py',
+      runner,
+    });
+
+    await expect(
+      port.invoke('calculate_population_coverage', {
+        ...input,
+        associations: [{ candidateId: 'candidate-1', allele: 'HLA-A*02:01' }],
+      }),
+    ).rejects.toMatchObject({
+      code: 'IEDB_POPULATION_COVERAGE_PEPTIDE_REQUIRED',
+      category: 'VALIDATION',
+    });
+    expect(runner).not.toHaveBeenCalled();
   });
 });

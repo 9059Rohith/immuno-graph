@@ -477,7 +477,13 @@ export const populationCoverageContract = defineContract({
     .object({
       runId: identifierSchema,
       associations: z
-        .array(z.object({ candidateId: identifierSchema, allele: identifierSchema }))
+        .array(
+          z.object({
+            candidateId: identifierSchema,
+            peptide: identifierSchema.optional(),
+            allele: identifierSchema,
+          }),
+        )
         .min(1),
       populationIds: nonemptyStrings,
       classMode: z.enum(['CLASS_I', 'CLASS_II', 'COMBINED']),
@@ -507,7 +513,13 @@ export const syntheticPopulationCoverageContract = defineContract({
     .object({
       runId: identifierSchema,
       associations: z
-        .array(z.object({ candidateId: identifierSchema, allele: identifierSchema }))
+        .array(
+          z.object({
+            candidateId: identifierSchema,
+            peptide: identifierSchema.optional(),
+            allele: identifierSchema,
+          }),
+        )
         .min(1),
       populationIds: nonemptyStrings,
       classMode: z.enum(['CLASS_I', 'CLASS_II', 'COMBINED']),

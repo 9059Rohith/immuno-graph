@@ -37,6 +37,10 @@ const rawMcpEnvironmentSchema = z.object({
     .default('false'),
   /** Explicit configured IEDB-compatible population coverage HTTP endpoint. */
   IEDB_POPULATION_COVERAGE_URL: z.string().url().optional(),
+  /** Absolute or runtime-relative path to IEDB's standalone population coverage script. */
+  IEDB_POPULATION_COVERAGE_SCRIPT_PATH: z.string().min(1).optional(),
+  /** Python command used to run IEDB's standalone population coverage script. */
+  IEDB_POPULATION_COVERAGE_PYTHON_COMMAND: z.string().min(1).default('python'),
   /** Per-request timeout for IEDB population coverage HTTP calls (ms). */
   IEDB_POPULATION_COVERAGE_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
   /** Maximum permitted IEDB population coverage response body size (bytes). */
