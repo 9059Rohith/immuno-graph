@@ -1,0 +1,411 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  organism    String?
+  proteinName String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  proteinInputs ProteinInput[]
+  workflowRuns  WorkflowRun[]
+
+  @@index([createdAt])
+}
+
+model ProteinInput {
+  id                       String   @id @default(uuid())
+  projectId                String
+  originalFasta            String
+  header                   String
+  normalizedSequence       String
+  sequenceLength           Int
+  sha256                   String
+  validationProfileVersion String
+  createdAt                DateTime @default(now())
+
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  workflowRuns WorkflowRun[]
+
+  @@index([sha256])
+  @@index([projectId, sha256])
+}
+
+model WorkflowRun {
+  id                    String    @id @default(uuid())
+  projectId             String
+  proteinInputId        String
+  revision              Int
+  status                String
+  quality               String?
+  configurationJson     String
+  configurationHash     String
+  ruleProfileVersion    String
+  rankingProfileVersion String
+  requestedExecutionMode String?
+  executionMode          String?
+  replayHash            String?
+  failureCode           String?
+  createdAt             DateTime  @default(now())
+  startedAt             DateTime?
+  completedAt           DateTime?
+  updatedAt             DateTime  @updatedAt
+
+  project                      Project                       @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  proteinInput                 ProteinInput                  @relation(fields: [proteinInputId], references: [id], onDelete: Restrict)
+  stages                       WorkflowStage[]
+  events                       WorkflowEvent[]
+  predictorExecutions          PredictorExecution[]
+  candidates                   Candidate[]
+  predictionObservations       PredictionObservation[]
+  normalizedObservations       NormalizedObservation[]
+  evidenceSummaries            EvidenceSummary[]
+  constraintOutcomes           ConstraintOutcome[]
+  rankingResults               RankingResult[]
+  populationCoverageResults    PopulationCoverageResult[]
+  shortlistOptimizationResults ShortlistOptimizationResult[]
+  approvals                    Approval[]
+  artifacts                    Artifact[]
+  graphNodes                   GraphNode[]
+  graphEdges                   GraphEdge[]
+
+  @@unique([projectId, revision])
+  @@index([status, createdAt])
+  @@index([proteinInputId])
+}
+
+model WorkflowStage {
+  id                 String    @id @default(uuid())
+  runId              String
+  stageKey           String
+  attempt            Int
+  status             String
+  dependencyKeysJson String
+  inputHash          String
+  outputHash         String?
+  progress           Float?
+  errorCode          String?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  run                 WorkflowRun          @relation(fields: [runId], references: [id], onDelete: Restrict)
+  events              WorkflowEvent[]
+  predictorExecutions PredictorExecution[]
+
+  @@unique([runId, stageKey, attempt])
+}
+
+model WorkflowEvent {
+  id             String   @id @default(uuid())
+  runId          String
+  stageId        String?
+  sequenceNumber Int
+  eventType      String
+  level          String
+  message        String
+  payloadJson    String
+  createdAt      DateTime @default(now())
+
+  run   WorkflowRun    @relation(fields: [runId], references: [id], onDelete: Restrict)
+  stage WorkflowStage? @relation(fields: [stageId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, sequenceNumber])
+}
+
+model PredictorExecution {
+  id               String    @id @default(uuid())
+  runId            String
+  stageId          String
+  connectorId      String
+  connectorVersion String
+  method           String
+  methodVersion    String
+  status           String
+  sourceStatus     String
+  parametersJson   String
+  inputHash        String
+  outputHash       String?
+  cacheKey         String?
+  fixtureId        String?
+  attemptCount     Int
+  errorCode        String?
+  startedAt        DateTime
+  completedAt      DateTime?
+
+  run          WorkflowRun             @relation(fields: [runId], references: [id], onDelete: Restrict)
+  stage        WorkflowStage           @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  observations PredictionObservation[]
+}
+
+model Candidate {
+  id            String   @id @default(uuid())
+  runId         String
+  candidateKey  String
+  candidateType String
+  peptide       String
+  start         Int
+  end           Int
+  length        Int
+  allele        String?
+  createdAt     DateTime @default(now())
+
+  run                       WorkflowRun              @relation(fields: [runId], references: [id], onDelete: Restrict)
+  predictionObservations    PredictionObservation[]
+  normalizedObservations    NormalizedObservation[]
+  evidenceSummaries         EvidenceSummary[]
+  constraintOutcomes        ConstraintOutcome[]      @relation("ConstraintCandidate")
+  relatedConstraintOutcomes ConstraintOutcome[]      @relation("RelatedConstraintCandidate")
+  rankingResults            RankingResult[]
+  shortlistSelectionSteps   ShortlistSelectionStep[]
+
+  @@unique([runId, candidateKey])
+  @@index([runId, candidateType])
+  @@index([runId, start, end])
+}
+
+model PredictionObservation {
+  id                   String   @id @default(uuid())
+  runId                String
+  candidateId          String
+  predictorExecutionId String
+  rawScoresJson        String
+  unitsJson            String
+  inputHash            String
+  outputHash           String
+  observedAt           DateTime
+  createdAt            DateTime @default(now())
+  supersedesId         String?
+
+  run                    WorkflowRun             @relation(fields: [runId], references: [id], onDelete: Restrict)
+  candidate              Candidate               @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  predictorExecution     PredictorExecution      @relation(fields: [predictorExecutionId], references: [id], onDelete: Restrict)
+  supersedes             PredictionObservation?  @relation("ObservationSupersession", fields: [supersedesId], references: [id], onDelete: Restrict)
+  supersededBy           PredictionObservation[] @relation("ObservationSupersession")
+  normalizedObservations NormalizedObservation[]
+}
+
+model NormalizedObservation {
+  id                      String   @id @default(uuid())
+  runId                   String
+  candidateId             String
+  predictionObservationId String
+  field                   String
+  rawValue                Float
+  normalizedValue         Float
+  profileVersion          String
+  transformationJson      String
+  createdAt               DateTime @default(now())
+
+  run                   WorkflowRun           @relation(fields: [runId], references: [id], onDelete: Restrict)
+  candidate             Candidate             @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  predictionObservation PredictionObservation @relation(fields: [predictionObservationId], references: [id], onDelete: Restrict)
+
+  @@unique([predictionObservationId, field, profileVersion])
+}
+
+model EvidenceSummary {
+  id             String   @id @default(uuid())
+  runId          String
+  candidateId    String
+  snapshotHash   String
+  bindingQuality Float?
+  weightedMean   Float?
+  variance       Float?
+  agreement      Float?
+  completeness   Float
+  consensus      Float?
+  detailsJson    String
+  createdAt      DateTime @default(now())
+
+  run       WorkflowRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  candidate Candidate   @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+
+  @@unique([candidateId, snapshotHash])
+}
+
+model ConstraintOutcome {
+  id                 String   @id @default(uuid())
+  runId              String
+  candidateId        String
+  snapshotHash       String
+  ruleId             String
+  ruleVersion        String
+  severity           String
+  outcome            String
+  message            String
+  evidenceRefsJson   String
+  relatedCandidateId String?
+  createdAt          DateTime @default(now())
+
+  run              WorkflowRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  candidate        Candidate   @relation("ConstraintCandidate", fields: [candidateId], references: [id], onDelete: Restrict)
+  relatedCandidate Candidate?  @relation("RelatedConstraintCandidate", fields: [relatedCandidateId], references: [id], onDelete: Restrict)
+
+  @@unique([candidateId, snapshotHash, ruleId, ruleVersion])
+}
+
+model RankingResult {
+  id                  String   @id @default(uuid())
+  runId               String
+  candidateId         String
+  snapshotHash        String
+  profileVersion      String
+  track               String
+  componentScoresJson String
+  penaltiesJson       String
+  finalScore          Float
+  category            String
+  confidence          Float
+  rank                Int
+  createdAt           DateTime @default(now())
+
+  run       WorkflowRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  candidate Candidate   @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+
+  @@unique([candidateId, snapshotHash, profileVersion])
+  @@index([runId, track, category, rank])
+}
+
+model PopulationCoverageResult {
+  id                String   @id @default(uuid())
+  runId             String
+  populationId      String
+  classMode         String
+  purpose           String
+  candidateIdsJson  String
+  projectedCoverage Float
+  averageHits       Float?
+  pc90              Float?
+  provenanceJson    String
+  snapshotHash      String
+  createdAt         DateTime @default(now())
+
+  run                       WorkflowRun                   @relation(fields: [runId], references: [id], onDelete: Restrict)
+  finalizedShortlistResults ShortlistOptimizationResult[]
+
+  @@index([runId, populationId, purpose])
+}
+
+model ShortlistOptimizationResult {
+  id                       String   @id @default(uuid())
+  runId                    String
+  track                    String
+  eligibleCandidateIdsJson String
+  finalCoverageResultId    String
+  algorithmId              String
+  algorithmVersion         String
+  snapshotHash             String
+  createdAt                DateTime @default(now())
+
+  run                 WorkflowRun              @relation(fields: [runId], references: [id], onDelete: Restrict)
+  finalCoverageResult PopulationCoverageResult @relation(fields: [finalCoverageResultId], references: [id], onDelete: Restrict)
+  selectionSteps      ShortlistSelectionStep[]
+
+  @@unique([runId, track, snapshotHash])
+}
+
+model ShortlistSelectionStep {
+  id                            String   @id @default(uuid())
+  shortlistOptimizationResultId String
+  step                          Int
+  selectedCandidateId           String
+  marginalCoverageGain          Float
+  cumulativeCoverage            Float
+  reasonCode                    String
+  createdAt                     DateTime @default(now())
+
+  shortlistOptimizationResult ShortlistOptimizationResult @relation(fields: [shortlistOptimizationResultId], references: [id], onDelete: Restrict)
+  selectedCandidate           Candidate                   @relation(fields: [selectedCandidateId], references: [id], onDelete: Restrict)
+
+  @@unique([shortlistOptimizationResultId, step])
+}
+
+model Approval {
+  id            String   @id @default(uuid())
+  runId         String
+  type          String
+  status        String
+  snapshotHash  String
+  selectionJson String
+  note          String?
+  createdAt     DateTime @default(now())
+
+  run WorkflowRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+}
+
+model Artifact {
+  id              String   @id @default(uuid())
+  runId           String
+  type            String
+  format          String
+  relativePath    String
+  mimeType        String
+  byteSize        Int
+  sha256          String
+  templateVersion String?
+  createdAt       DateTime @default(now())
+
+  run WorkflowRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+}
+
+model GraphNode {
+  id             String   @id @default(uuid())
+  runId          String
+  nodeType       String
+  entityId       String
+  label          String
+  propertiesJson String
+  createdAt      DateTime @default(now())
+
+  run           WorkflowRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  outgoingEdges GraphEdge[] @relation("GraphEdgeSource")
+  incomingEdges GraphEdge[] @relation("GraphEdgeTarget")
+
+  @@unique([runId, nodeType, entityId])
+}
+
+model GraphEdge {
+  id             String   @id @default(uuid())
+  runId          String
+  edgeType       String
+  sourceNodeId   String
+  targetNodeId   String
+  propertiesJson String
+  createdAt      DateTime @default(now())
+
+  run        WorkflowRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  sourceNode GraphNode   @relation("GraphEdgeSource", fields: [sourceNodeId], references: [id], onDelete: Restrict)
+  targetNode GraphNode   @relation("GraphEdgeTarget", fields: [targetNodeId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, edgeType, sourceNodeId, targetNodeId])
+}
+
+model CacheEntry {
+  id               String   @id @default(uuid())
+  cacheKey         String   @unique
+  connectorId      String
+  connectorVersion String
+  method           String
+  methodVersion    String
+  inputHash        String
+  outputHash       String
+  schemaVersion    String
+  valueJson        String
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+  lastAccessedAt   DateTime
+
+  @@index([connectorId])
+  @@index([expiresAt])
+}

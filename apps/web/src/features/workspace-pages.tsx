@@ -1,0 +1,1646 @@
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  FileText,
+  FlaskConical,
+  Play,
+  RefreshCw,
+} from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+
+import { EmptyState, ErrorState, LoadingState } from '@/components/page-state';
+import { SourceStatusBadge } from '@/components/source-status-badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+
+import {
+  useArtifacts,
+  useApproveConfiguration,
+  useApproveShortlist,
+  useCandidate,
+  useCandidates,
+  useCancelRun,
+  useCompareCandidates,
+  useCoverageVisualization,
+  useCreateProject,
+  useCreateReport,
+  useCreateRun,
+  useDiagnostics,
+  useEvidence,
+  useProject,
+  useRun,
+  useSequenceMap,
+  useStartRun,
+  useWorkflow,
+} from './data-hooks';
+import { createRunConfigurationInput, createShortlistApprovalInput } from './workflow-actions';
+import { GraphCanvas } from './graph-canvas';
+import { sequenceSegmentGeometry } from './sequence-geometry';
+
+const id = (value: string | undefined) => value ?? '';
+const heading = (title: string, description: string) => (
+  <div>
+    <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
+    <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+  </div>
+);
+
+export function CreateProjectPage() {
+  const create = useCreateProject();
+  const navigate = useNavigate();
+  const [fasta, setFasta] = useState('');
+  return (
+    <>
+      {heading('Create Project', 'Register one protein FASTA record for a reproducible analysis.')}
+      <Card>
+        <CardHeader>
+          <CardTitle>Project and protein</CardTitle>
+          <CardDescription>The API performs authoritative FASTA validation.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="flex flex-col gap-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const values = new FormData(event.currentTarget);
+              create.mutate(
+                {
+                  name: String(values.get('name')),
+                  organism: String(values.get('organism')),
+                  proteinName: String(values.get('proteinName')),
+                  description: String(values.get('description') || ''),
+                  fasta: String(values.get('fasta')),
+                },
+                { onSuccess: (result) => navigate(`/projects/${result.project.id}`) },
+              );
+            }}
+          >
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="name">Project name</FieldLabel>
+                <Input id="name" name="name" required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="organism">Organism</FieldLabel>
+                <Input id="organism" name="organism" required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="proteinName">Protein name</FieldLabel>
+                <Input id="proteinName" name="proteinName" required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="description">Description</FieldLabel>
+                <Textarea id="description" name="description" />
+              </Field>
+              <Field id="fasta">
+                <FieldLabel htmlFor="fasta-file">Import FASTA file (optional)</FieldLabel>
+                <Input
+                  accept=".fasta,.fa,.faa,text/plain"
+                  aria-describedby="fasta-file-help"
+                  id="fasta-file"
+                  type="file"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    if (file) void file.text().then(setFasta);
+                  }}
+                />
+                <p className="text-xs text-muted-foreground" id="fasta-file-help">
+                  Choose a local FASTA file or paste the exact record below. The browser does not
+                  alter sequence text.
+                </p>
+                <FieldLabel htmlFor="fasta-input">Protein FASTA</FieldLabel>
+                <Textarea
+                  className="min-h-48 font-mono"
+                  id="fasta-input"
+                  name="fasta"
+                  required
+                  value={fasta}
+                  onChange={(event) => setFasta(event.currentTarget.value)}
+                />
+              </Field>
+            </FieldGroup>
+            {create.isError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Project could not be created</AlertTitle>
+                <AlertDescription>{create.error.message}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Button disabled={create.isPending} type="submit">
+              {create.isPending ? 'Validating…' : 'Create project'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+export function ProjectPage() {
+  const projectId = id(useParams().projectId);
+  const query = useProject(projectId);
+  if (query.isLoading) return <LoadingState label="Loading project" />;
+  if (query.isError)
+    return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
+  if (!query.data) return null;
+  const { project, protein, runs } = query.data;
+  return (
+    <>
+      {heading(project.name, 'Project overview and immutable protein input.')}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Protein input</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 text-sm">
+            <p>
+              <strong>Organism:</strong> {project.organism ?? 'Not specified'}
+            </p>
+            <p>
+              <strong>Protein:</strong> {project.proteinName ?? 'Not specified'}
+            </p>
+            <p>
+              <strong>Header:</strong> {protein.header}
+            </p>
+            <p>
+              <strong>Length:</strong> {protein.length} aa
+            </p>
+            <code className="break-all rounded bg-muted p-2">{protein.sha256}</code>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link to={`/projects/${projectId}/settings`}>
+                <Play aria-hidden="true" />
+                New analysis
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Run revisions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {runs.length === 0 ? (
+            <EmptyState
+              title="No runs"
+              message="Configure and approve the first analysis revision."
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Revision</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Quality</TableHead>
+                  <TableHead>Sources</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {runs.map((run) => (
+                  <TableRow key={run.id}>
+                    <TableCell>
+                      <Link className="text-primary hover:underline" to={`/runs/${run.id}`}>
+                        Revision {run.revision}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{run.status}</TableCell>
+                    <TableCell>{run.quality ?? 'Pending'}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {run.sourceMix.map((source) => (
+                          <SourceStatusBadge key={source} status={source} />
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+export function ProjectSettingsPage() {
+  const projectId = id(useParams().projectId);
+  const createRun = useCreateRun(projectId);
+  const approve = useApproveConfiguration(createRun.data?.id ?? '');
+  const [approvalNote, setApprovalNote] = useState('');
+  const navigate = useNavigate();
+  return (
+    <>
+      {heading('Project Settings', 'Configure a new immutable run revision for this project.')}
+      <Alert>
+        <FlaskConical aria-hidden="true" />
+        <AlertTitle>GraphBepi fixture only in MVP</AlertTitle>
+        <AlertDescription>
+          B-cell analysis uses an approved deterministic fixture and always displays its provenance.
+        </AlertDescription>
+      </Alert>
+      <form
+        className="grid gap-4 lg:grid-cols-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const values = new FormData(event.currentTarget);
+          createRun.mutate(
+            createRunConfigurationInput({
+              mhciAlleles: String(values.get('mhciAlleles')),
+              mhciLengths: String(values.get('mhciLengths')),
+              mhciiAlleles: String(values.get('mhciiAlleles')),
+              mhciiLengths: String(values.get('mhciiLengths')),
+              populations: String(values.get('populations')),
+              enableMhcflurry: values.get('enableMhcflurry') === 'on',
+              enableBcell: values.get('enableBcell') === 'on',
+              fallbackPolicy: String(values.get('fallbackPolicy')),
+              requestedExecutionMode: String(values.get('requestedExecutionMode')) as
+                'AUTO' | 'LIVE' | 'SYNTHETIC' | 'FIXTURE',
+              ruleProfileVersion: String(values.get('ruleProfileVersion')),
+              rankingProfileVersion: String(values.get('rankingProfileVersion')),
+            }),
+          );
+        }}
+      >
+        <ConfigurationCard title="MHC-I" description="Comma-separated alleles and lengths.">
+          <Field>
+            <FieldLabel htmlFor="mhci-alleles">Alleles</FieldLabel>
+            <Input id="mhci-alleles" name="mhciAlleles" defaultValue="HLA-A*02:01" required />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="mhci-lengths">Peptide lengths</FieldLabel>
+            <Input id="mhci-lengths" name="mhciLengths" defaultValue="9, 10" required />
+          </Field>
+          <label className="flex items-start gap-2 text-sm">
+            <input defaultChecked name="enableMhcflurry" type="checkbox" />
+            <span>
+              Enable local MHCflurry MHC-I live predictor
+              <span className="block text-xs text-muted-foreground">
+                Requires `MHCFLURRY_ENABLED=true` and an installed `mhcflurry-predict-scan`
+                executable.
+              </span>
+            </span>
+          </label>
+        </ConfigurationCard>
+        <ConfigurationCard title="MHC-II" description="Comma-separated alleles and lengths.">
+          <Field>
+            <FieldLabel htmlFor="mhcii-alleles">Alleles</FieldLabel>
+            <Input id="mhcii-alleles" name="mhciiAlleles" defaultValue="HLA-DRB1*04:01" required />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="mhcii-lengths">Peptide lengths</FieldLabel>
+            <Input id="mhcii-lengths" name="mhciiLengths" defaultValue="15" required />
+          </Field>
+        </ConfigurationCard>
+        <ConfigurationCard title="Population coverage" description="Coverage populations.">
+          <Field>
+            <FieldLabel htmlFor="populations">Population IDs</FieldLabel>
+            <Input
+              id="populations"
+              name="populations"
+              defaultValue="synthetic-population-alpha, synthetic-population-beta"
+              required
+            />
+          </Field>
+        </ConfigurationCard>
+        <ConfigurationCard
+          title="Profiles and constraints"
+          description="Immutable file-backed profiles; definitions are not stored in SQLite."
+        >
+          <Field>
+            <FieldLabel htmlFor="rule-profile">Rule profile version</FieldLabel>
+            <Input id="rule-profile" name="ruleProfileVersion" defaultValue="mvp-v1.0" required />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="ranking-profile">Ranking profile version</FieldLabel>
+            <Input
+              id="ranking-profile"
+              name="rankingProfileVersion"
+              defaultValue="mvp-v1.0"
+              required
+            />
+          </Field>
+        </ConfigurationCard>
+        <ConfigurationCard title="Execution policy" description="Live, cache, and fixture order.">
+          <Field>
+            <FieldLabel htmlFor="execution-mode">Requested execution mode</FieldLabel>
+            <select
+              className="h-9 rounded-md border bg-background px-3 text-sm"
+              defaultValue="AUTO"
+              id="execution-mode"
+              name="requestedExecutionMode"
+            >
+              <option value="AUTO">Auto — live first, controlled fallback</option>
+              <option value="LIVE">Live scientific predictors only</option>
+              <option value="SYNTHETIC">Offline synthetic demonstration only</option>
+              <option value="FIXTURE">Exact approved fixture replay only</option>
+            </select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="fallback-policy">Fallback policy</FieldLabel>
+            <select
+              className="h-9 rounded-md border bg-background px-3 text-sm"
+              defaultValue="CACHE_THEN_LIVE_THEN_FIXTURE"
+              id="fallback-policy"
+              name="fallbackPolicy"
+            >
+              <option value="CACHE_THEN_LIVE_THEN_FIXTURE">Cache → live → fixture</option>
+              <option value="LIVE_THEN_CACHE_THEN_FIXTURE">Live → cache → fixture</option>
+              <option value="FIXTURE_ONLY">Fixture only</option>
+            </select>
+          </Field>
+          <label className="flex items-center gap-2 text-sm">
+            <input name="enableBcell" type="checkbox" />
+            Enable B-cell GraphBepi fixture track
+          </label>
+        </ConfigurationCard>
+        <ConfigurationCard
+          title="Output preferences"
+          description="Frozen reproducibility package for MVP v1.0."
+        >
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">JSON</Badge>
+            <Badge variant="outline">CSV</Badge>
+            <Badge variant="outline">Evidence graph</Badge>
+            <Badge variant="outline">Workflow trace</Badge>
+          </div>
+        </ConfigurationCard>
+        {createRun.isError ? (
+          <Alert className="lg:col-span-2" variant="destructive">
+            <AlertTitle>Draft could not be created</AlertTitle>
+            <AlertDescription>{createRun.error.message}</AlertDescription>
+          </Alert>
+        ) : null}
+        <div className="flex justify-between gap-3 lg:col-span-2">
+          <Button asChild variant="outline">
+            <Link to={`/projects/${projectId}`}>Back to project</Link>
+          </Button>
+          <Button disabled={createRun.isPending} type="submit">
+            {createRun.isPending ? 'Creating draft…' : 'Create configuration draft'}
+          </Button>
+        </div>
+      </form>
+      {createRun.data ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Approve configuration snapshot</CardTitle>
+            <CardDescription>
+              Review and approve hash {createRun.data.configurationHash.slice(0, 12)}… to make this
+              revision immutable and queue it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <Input
+              aria-label="Configuration approval note"
+              placeholder="Optional review note"
+              value={approvalNote}
+              onChange={(event) => setApprovalNote(event.currentTarget.value)}
+            />
+            {approve.isError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Approval failed</AlertTitle>
+                <AlertDescription>{approve.error.message}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Button
+              disabled={approve.isPending}
+              onClick={() => {
+                const note = approvalNote.trim();
+                approve.mutate(
+                  {
+                    expectedConfigurationHash: createRun.data.configurationHash,
+                    ...(note ? { note } : {}),
+                  },
+                  { onSuccess: (run) => navigate(`/runs/${run.id}`) },
+                );
+              }}
+            >
+              {approve.isPending ? 'Approving…' : 'Approve configuration and queue'}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+    </>
+  );
+}
+function ConfigurationCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">{children}</CardContent>
+    </Card>
+  );
+}
+
+export function RunPage() {
+  const runId = id(useParams().runId);
+  const query = useRun(runId);
+  const start = useStartRun(runId);
+  const cancel = useCancelRun(runId);
+  if (query.isLoading) return <LoadingState label="Loading run" />;
+  if (query.isError)
+    return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
+  if (!query.data) return null;
+  const run = query.data;
+  return (
+    <>
+      {heading(
+        `Run revision ${run.revision}`,
+        'Lifecycle, quality, approvals, and connector provenance.',
+      )}{' '}
+      {run.executionMode === 'SYNTHETIC' || run.executionMode === 'HYBRID' ? (
+        <Alert className="border-fixture-border bg-fixture">
+          <FlaskConical aria-hidden="true" />
+          <AlertTitle>OFFLINE SYNTHETIC DEMONSTRATION — NOT SCIENTIFIC OUTPUT</AlertTitle>
+          <AlertDescription>
+            Binding or coverage values in this run were generated by deterministic offline
+            demonstration tools. scientificUse = false. Do not interpret these values as validated
+            biological predictions.
+          </AlertDescription>
+        </Alert>
+      ) : run.quality === 'FIXTURE_ONLY' ||
+        run.connectors.some((item) => item.sourceStatus === 'FIXTURE') ? (
+        <Alert>
+          <FlaskConical aria-hidden="true" />
+          <AlertTitle>Fixture-backed evidence</AlertTitle>
+          <AlertDescription>This run includes deterministic demo fixture results.</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="grid gap-3 md:grid-cols-4">
+        <Stat label="Status" value={run.status} />
+        <Stat label="Execution mode" value={run.executionMode ?? 'Pending'} />
+        <Stat label="Run quality" value={run.quality ?? 'Pending'} />
+        <Stat
+          label="Stages"
+          value={`${run.stageProgress.filter((stage) => stage.status === 'SUCCEEDED').length} / ${run.stageProgress.length}`}
+        />
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Connector status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Connector</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Version</TableHead>
+                <TableHead>Duration</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {run.connectors.map((connector) => (
+                <TableRow key={`${connector.connectorId}-${connector.method}`}>
+                  <TableCell>{connector.connectorId}</TableCell>
+                  <TableCell>{connector.method}</TableCell>
+                  <TableCell>
+                    <SourceStatusBadge status={connector.sourceStatus} />
+                  </TableCell>
+                  <TableCell>{connector.version}</TableCell>
+                  <TableCell>{connector.durationMs} ms</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      <div className="flex flex-wrap gap-2">
+        {run.status === 'QUEUED' ? (
+          <Button disabled={start.isPending} onClick={() => start.mutate()}>
+            <Play aria-hidden="true" />
+            {start.isPending ? 'Starting…' : 'Start approved run'}
+          </Button>
+        ) : null}
+        {run.status === 'QUEUED' || run.status === 'RUNNING' ? (
+          <Button disabled={cancel.isPending} variant="destructive" onClick={() => cancel.mutate()}>
+            {cancel.isPending ? 'Cancelling…' : 'Cancel run'}
+          </Button>
+        ) : null}
+        <Button asChild>
+          <Link to={`/runs/${runId}/workflow`}>View workflow</Link>
+        </Button>
+        {run.status === 'COMPLETED' ? (
+          <Button asChild variant="outline">
+            <Link to={`/runs/${runId}/candidates`}>Review candidates</Link>
+          </Button>
+        ) : (
+          <Button disabled variant="outline">
+            Review candidates
+          </Button>
+        )}
+      </div>
+    </>
+  );
+}
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+        <CardTitle>{value}</CardTitle>
+      </CardHeader>
+    </Card>
+  );
+}
+
+export function WorkflowPage() {
+  const runId = id(useParams().runId);
+  const query = useWorkflow(runId);
+  if (query.isLoading) return <LoadingState label="Loading workflow" />;
+  if (query.isError)
+    return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
+  if (!query.data) return null;
+  return (
+    <>
+      {heading('Workflow Visualization', 'Dependency edges and server-recorded stage state.')}
+      <Card>
+        <CardContent className="h-[620px] p-0">
+          <GraphCanvas graph={query.data} label="Workflow dependency graph" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Accessible stage list</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="grid gap-2">
+            {query.data.nodes.map((node) => (
+              <li className="rounded border p-3" key={node.id}>
+                <strong>{node.data.label}</strong>
+                <span className="ml-2 text-muted-foreground">{node.data.status}</span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+export function CandidatesPage() {
+  const runId = id(useParams().runId);
+  const [search, setSearch] = useSearchParams();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const track = search.get('track') ?? 'MHCI';
+  const params = new URLSearchParams(search);
+  params.set('track', track);
+  params.set('sort', 'rank');
+  params.set('limit', '50');
+  const runQuery = useRun(runId);
+  const query = useCandidates(runId, params, { enabled: runQuery.data?.status === 'COMPLETED' });
+  const detail = useCandidate(runId, search.get('candidate') ?? undefined, {
+    enabled: runQuery.data?.status === 'COMPLETED',
+  });
+  const compare = useCompareCandidates(runId);
+  if (runQuery.isLoading || query.isLoading) return <LoadingState label="Loading candidates" />;
+  if (runQuery.isError)
+    return <ErrorState message={runQuery.error.message} onRetry={() => void runQuery.refetch()} />;
+  if (runQuery.data?.status !== 'COMPLETED')
+    return (
+      <EmptyState
+        title="Run not complete"
+        message="The run has not finished successfully. Candidates are not yet available."
+      />
+    );
+  if (query.isError)
+    return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
+  if (!query.data) return null;
+  return (
+    <>
+      {heading(
+        'Candidate Rankings',
+        'Track-specific deterministic ranking with visible provenance.',
+      )}
+      <Tabs
+        value={track}
+        onValueChange={(value) => {
+          const next = new URLSearchParams(search);
+          next.set('track', value);
+          next.delete('cursor');
+          setSelectedIds([]);
+          setSearch(next);
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="MHCI">MHC-I</TabsTrigger>
+          <TabsTrigger value="MHCII">MHC-II</TabsTrigger>
+          <TabsTrigger value="BCELL">B-cell</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      <div className="flex flex-wrap gap-2">
+        <Input
+          aria-label="Search peptide or candidate ID"
+          className="max-w-sm"
+          defaultValue={search.get('search') ?? ''}
+          onBlur={(event) =>
+            updateSearchParameter(search, setSearch, 'search', event.currentTarget.value)
+          }
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              updateSearchParameter(search, setSearch, 'search', event.currentTarget.value);
+            }
+          }}
+          placeholder="Search peptide or candidate ID"
+        />
+        <Select
+          value={search.get('hasWarnings') ?? 'ANY'}
+          onValueChange={(value) =>
+            updateSearchParameter(search, setSearch, 'hasWarnings', value === 'ANY' ? '' : value)
+          }
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Warning status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="ANY">Any warning status</SelectItem>
+              <SelectItem value="true">Has warnings</SelectItem>
+              <SelectItem value="false">No warnings</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <CandidateFilterSelect
+          label="Category"
+          parameter="category"
+          options={['RECOMMENDED', 'REVIEW', 'REJECTED']}
+          search={search}
+          setSearch={setSearch}
+        />
+        <CandidateFilterSelect
+          label="Source"
+          parameter="sourceStatus"
+          options={['LIVE', 'CACHED', 'SYNTHETIC', 'FIXTURE', 'FAILED']}
+          search={search}
+          setSearch={setSearch}
+        />
+        <Input
+          aria-label="Filter by allele"
+          className="max-w-48"
+          defaultValue={search.get('allele') ?? ''}
+          placeholder="Allele"
+          onBlur={(event) =>
+            updateSearchParameter(search, setSearch, 'allele', event.currentTarget.value)
+          }
+        />
+        <Input
+          aria-label="Minimum score"
+          className="w-32"
+          defaultValue={search.get('minScore') ?? ''}
+          max="1"
+          min="0"
+          placeholder="Min score"
+          step="0.01"
+          type="number"
+          onBlur={(event) =>
+            updateSearchParameter(search, setSearch, 'minScore', event.currentTarget.value)
+          }
+        />
+        <Input
+          aria-label="Maximum score"
+          className="w-32"
+          defaultValue={search.get('maxScore') ?? ''}
+          max="1"
+          min="0"
+          placeholder="Max score"
+          step="0.01"
+          type="number"
+          onBlur={(event) =>
+            updateSearchParameter(search, setSearch, 'maxScore', event.currentTarget.value)
+          }
+        />
+        <Button
+          disabled={selectedIds.length < 2 || selectedIds.length > 5 || compare.isPending}
+          variant="outline"
+          onClick={() => compare.mutate(selectedIds)}
+        >
+          {compare.isPending ? 'Comparing…' : `Compare selected (${selectedIds.length})`}
+        </Button>
+      </div>
+      {query.data.items.length === 0 ? (
+        <EmptyState
+          title="No candidates"
+          message="No candidates match the selected server filters."
+        />
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Select</TableHead>
+                  <TableHead>Rank</TableHead>
+                  <TableHead>Peptide / region</TableHead>
+                  <TableHead>Coordinates</TableHead>
+                  <TableHead>Allele</TableHead>
+                  <TableHead>Final score</TableHead>
+                  <TableHead>Confidence</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Sources</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {query.data.items.map((candidate) => (
+                  <TableRow aria-selected={selectedIds.includes(candidate.id)} key={candidate.id}>
+                    <TableCell>
+                      <Checkbox
+                        aria-label={`Select ${candidate.peptide}`}
+                        checked={selectedIds.includes(candidate.id)}
+                        disabled={!candidate.selectable || candidate.category === 'REJECTED'}
+                        onCheckedChange={(checked) =>
+                          setSelectedIds((current) =>
+                            checked
+                              ? [...new Set([...current, candidate.id])]
+                              : current.filter((candidateId) => candidateId !== candidate.id),
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>{candidate.rank}</TableCell>
+                    <TableCell className="font-mono">
+                      <Link
+                        className="text-primary hover:underline"
+                        to={candidateDetailHref(search, candidate.id)}
+                      >
+                        {candidate.peptide}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      {candidate.start}–{candidate.end}
+                    </TableCell>
+                    <TableCell>{candidate.allele ?? '—'}</TableCell>
+                    <TableCell>{candidate.finalScore.toFixed(3)}</TableCell>
+                    <TableCell>{candidate.confidence}</TableCell>
+                    <TableCell>{candidate.category}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {candidate.sourceMix.map((source) => (
+                          <SourceStatusBadge key={source} status={source} />
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+      {query.data.nextCursor ? (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={() =>
+              updateSearchParameter(search, setSearch, 'cursor', query.data.nextCursor ?? '')
+            }
+          >
+            Next page
+          </Button>
+        </div>
+      ) : search.has('cursor') ? (
+        <Button
+          variant="outline"
+          onClick={() => updateSearchParameter(search, setSearch, 'cursor', '')}
+        >
+          Return to first page
+        </Button>
+      ) : null}
+      {compare.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Comparison failed</AlertTitle>
+          <AlertDescription>{compare.error.message}</AlertDescription>
+        </Alert>
+      ) : null}
+      {compare.data ? <CandidateComparison data={compare.data} /> : null}
+      {detail.data ? (
+        <Card>
+          <CardHeader className="flex-row items-start justify-between gap-4">
+            <div>
+              <CardTitle>Candidate detail: {detail.data.candidate.peptide}</CardTitle>
+              <CardDescription>{detail.data.deterministicExplanation}</CardDescription>
+            </div>
+            <Button
+              aria-label="Close candidate detail"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const next = new URLSearchParams(search);
+                next.delete('candidate');
+                setSearch(next);
+              }}
+            >
+              Close
+            </Button>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            <DetailSection title="Decision summary">
+              <div className="grid gap-2 sm:grid-cols-3">
+                <Stat label="Rank" value={String(detail.data.candidate.rank)} />
+                <Stat label="Final score" value={detail.data.candidate.finalScore.toFixed(3)} />
+                <Stat label="Category" value={detail.data.candidate.category} />
+              </div>
+            </DetailSection>
+            <DetailSection title="Raw observations and normalization">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Method / version</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Raw value</TableHead>
+                    <TableHead>Normalized value</TableHead>
+                    <TableHead>Transformation</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {detail.data.observations.map((observation) => (
+                    <TableRow key={`${observation.method}-${observation.version}`}>
+                      <TableCell>
+                        {observation.method} · {observation.version}
+                      </TableCell>
+                      <TableCell>
+                        <SourceStatusBadge status={observation.sourceStatus} />
+                      </TableCell>
+                      <TableCell>{observation.rawValue}</TableCell>
+                      <TableCell>{observation.normalizedValue ?? 'Unavailable'}</TableCell>
+                      <TableCell>{observation.transformation ?? 'Not applied'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </DetailSection>
+            <DetailSection title="Consensus and completeness">
+              <p>Consensus: {displayValue(detail.data.consensus)}</p>
+              <p>Completeness: {displayValue(detail.data.completeness)}</p>
+            </DetailSection>
+            <DetailSection title="Population coverage evidence">
+              <p>Singleton: {displayValue(detail.data.singletonCoverage)}</p>
+              <p>Approved shortlist: {displayValue(detail.data.shortlistCoverage)}</p>
+            </DetailSection>
+            <DetailSection title="Constraint outcomes">
+              {detail.data.constraints.map((rule) => (
+                <p key={rule.ruleId}>
+                  <Badge variant={rule.outcome === 'FAIL' ? 'failed' : 'outline'}>
+                    {rule.outcome}
+                  </Badge>{' '}
+                  {rule.label} — {rule.reason}
+                </p>
+              ))}
+            </DetailSection>
+            <DetailSection title="Ranking formula">
+              {detail.data.ranking.components.map((component) => (
+                <p key={component.name}>
+                  {component.name}: {component.value.toFixed(3)} ×{' '}
+                  {component.effectiveWeight.toFixed(3)}
+                </p>
+              ))}
+              {detail.data.ranking.penalties.map((penalty) => (
+                <p key={penalty.name}>
+                  Penalty · {penalty.name}: {penalty.value.toFixed(3)}
+                </p>
+              ))}
+              <strong>Final score: {detail.data.ranking.finalScore.toFixed(3)}</strong>
+            </DetailSection>
+            <DetailSection title="Evidence graph neighborhood">
+              {detail.data.graphNeighborIds.length === 0 ? (
+                <p className="text-muted-foreground">No stored neighbors.</p>
+              ) : (
+                <ul className="list-inside list-disc font-mono text-sm">
+                  {detail.data.graphNeighborIds.map((neighborId) => (
+                    <li key={neighborId}>{neighborId}</li>
+                  ))}
+                </ul>
+              )}
+            </DetailSection>
+            <DetailSection title="Explanation">
+              <p>{detail.data.deterministicExplanation}</p>
+              {detail.data.llmExplanation ? (
+                <Alert>
+                  <AlertTitle>
+                    {detail.data.llmExplanation.generationModeUsed} explanation
+                  </AlertTitle>
+                  <AlertDescription>{detail.data.llmExplanation.text}</AlertDescription>
+                </Alert>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No optional LLM paraphrase requested.
+                </p>
+              )}
+            </DetailSection>
+          </CardContent>
+        </Card>
+      ) : null}
+      <CandidateSubviews
+        runId={runId}
+        search={search}
+        setSearch={setSearch}
+        rankingSnapshotHash={query.data.rankingSnapshotHash}
+        candidateIds={query.data.items.filter((item) => item.selectable).map((item) => item.id)}
+        selectedIds={selectedIds}
+      />
+    </>
+  );
+}
+function updateSearchParameter(
+  search: URLSearchParams,
+  setSearch: ReturnType<typeof useSearchParams>[1],
+  name: string,
+  value: string,
+) {
+  const next = new URLSearchParams(search);
+  if (value.trim() === '') next.delete(name);
+  else next.set(name, value.trim());
+  if (name !== 'cursor') next.delete('cursor');
+  setSearch(next);
+}
+
+function candidateDetailHref(search: URLSearchParams, candidateId: string) {
+  const next = new URLSearchParams(search);
+  next.set('candidate', candidateId);
+  return `?${next.toString()}`;
+}
+
+function CandidateFilterSelect({
+  label,
+  parameter,
+  options,
+  search,
+  setSearch,
+}: {
+  label: string;
+  parameter: string;
+  options: string[];
+  search: URLSearchParams;
+  setSearch: ReturnType<typeof useSearchParams>[1];
+}) {
+  return (
+    <Select
+      value={search.get(parameter) ?? 'ANY'}
+      onValueChange={(value) =>
+        updateSearchParameter(search, setSearch, parameter, value === 'ANY' ? '' : value)
+      }
+    >
+      <SelectTrigger className="w-40" aria-label={`Filter by ${label.toLowerCase()}`}>
+        <SelectValue placeholder={label} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value="ANY">Any {label.toLowerCase()}</SelectItem>
+          {options.map((option) => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+}
+function DetailSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function CandidateComparison({
+  data,
+}: {
+  data: import('@immunograph/shared').CandidateComparison;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Candidate comparison · {data.track}</CardTitle>
+        <CardDescription>
+          Aligned server-provided ranking components and rule outcomes.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-5">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Measure</TableHead>
+              {data.candidates.map((candidate) => (
+                <TableHead key={candidate.id}>{candidate.peptide}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.components.map((component) => (
+              <TableRow key={component.name}>
+                <TableCell>{component.name}</TableCell>
+                {data.candidates.map((candidate) => (
+                  <TableCell key={candidate.id}>
+                    {component.values[candidate.id]?.toFixed(3) ?? 'Unavailable'}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+            {data.constraints.map((constraint) => (
+              <TableRow key={constraint.ruleId}>
+                <TableCell>{constraint.label}</TableCell>
+                {data.candidates.map((candidate) => (
+                  <TableCell key={candidate.id}>{constraint.outcomes[candidate.id]}</TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+const displayValue = (item: { value: number | null; unavailableReason: string | null }) =>
+  item.value === null
+    ? `Unavailable — ${item.unavailableReason ?? 'No evidence'}`
+    : item.value.toFixed(3);
+
+function CandidateSubviews({
+  runId,
+  search,
+  setSearch,
+  rankingSnapshotHash,
+  candidateIds,
+  selectedIds,
+}: {
+  runId: string;
+  search: URLSearchParams;
+  setSearch: ReturnType<typeof useSearchParams>[1];
+  rankingSnapshotHash: string;
+  candidateIds: string[];
+  selectedIds: string[];
+}) {
+  const view = search.get('view') ?? 'rankings';
+  const sequence = useSequenceMap(runId);
+  const coverage = useCoverageVisualization(runId);
+  const approve = useApproveShortlist(runId);
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [approvalNote, setApprovalNote] = useState('');
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Candidate review tools</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {['rankings', 'sequence', 'coverage', 'shortlist'].map((item) => (
+            <Button
+              key={item}
+              size="sm"
+              variant={view === item ? 'default' : 'outline'}
+              onClick={() => {
+                const next = new URLSearchParams(search);
+                next.set('view', item);
+                setSearch(next);
+              }}
+            >
+              {item === 'sequence'
+                ? 'Sequence map'
+                : item === 'coverage'
+                  ? 'Population coverage'
+                  : item === 'shortlist'
+                    ? 'Shortlist approval'
+                    : 'Rankings'}
+            </Button>
+          ))}
+        </div>
+        {view === 'sequence' ? (
+          <SequenceMap data={sequence.data} loading={sequence.isLoading} />
+        ) : null}
+        {view === 'coverage' && coverage.data ? (
+          <>
+            <div className="h-72">
+              <ResponsiveContainer>
+                <BarChart
+                  data={coverage.data.populations.map((item) => ({
+                    name: item.label,
+                    coverage: item.coverage.value,
+                  }))}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" width={100} />
+                  <Bar dataKey="coverage" fill="var(--chart-1)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Population</TableHead>
+                  <TableHead>Estimated coverage</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {coverage.data.populations.map((item) => (
+                  <TableRow key={item.populationId}>
+                    <TableCell>{item.label}</TableCell>
+                    <TableCell>{displayValue(item.coverage)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
+        ) : null}
+        {view === 'shortlist' ? (
+          <div className="grid gap-3">
+            <Alert>
+              <AlertTriangle aria-hidden="true" />
+              <AlertTitle>Computational evidence only</AlertTitle>
+              <AlertDescription>
+                Shortlisted candidates require experimental validation.
+              </AlertDescription>
+            </Alert>
+            <label className="flex items-center gap-2">
+              <Checkbox
+                aria-label="Acknowledge computational-only shortlist status"
+                checked={acknowledged}
+                onCheckedChange={(checked) => setAcknowledged(checked === true)}
+              />
+              I acknowledge the computational-only status.
+            </label>
+            <p className="text-sm text-muted-foreground">
+              {selectedIds.length} candidate{selectedIds.length === 1 ? '' : 's'} selected from
+              snapshot {rankingSnapshotHash.slice(0, 12)}…
+            </p>
+            <Textarea
+              placeholder="Optional approval note"
+              value={approvalNote}
+              onChange={(event) => setApprovalNote(event.currentTarget.value)}
+            />
+            {approve.isError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Shortlist approval failed</AlertTitle>
+                <AlertDescription>{approve.error.message}</AlertDescription>
+              </Alert>
+            ) : null}
+            {approve.isSuccess ? (
+              <Alert>
+                <CheckCircle2 aria-hidden="true" />
+                <AlertTitle>Shortlist approved</AlertTitle>
+                <AlertDescription>Report generation is now available.</AlertDescription>
+              </Alert>
+            ) : null}
+            <Button
+              disabled={!acknowledged || selectedIds.length === 0 || approve.isPending}
+              onClick={() =>
+                approve.mutate(
+                  createShortlistApprovalInput(
+                    rankingSnapshotHash,
+                    candidateIds,
+                    selectedIds,
+                    approvalNote,
+                  ),
+                )
+              }
+            >
+              {approve.isPending ? 'Approving…' : 'Approve shortlist'}
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SequenceMap({
+  data,
+  loading,
+}: {
+  data: import('@immunograph/shared').SequenceMapView | undefined;
+  loading: boolean;
+}) {
+  if (loading) return <LoadingState label="Loading sequence map" />;
+  if (!data)
+    return <EmptyState title="No sequence map" message="No positional view is available." />;
+  if (data.segments.length > 500) {
+    return (
+      <Alert>
+        <AlertTriangle aria-hidden="true" />
+        <AlertTitle>Sequence map requires aggregation</AlertTitle>
+        <AlertDescription>
+          The API returned {data.segments.length} segments; the interactive MVP limit is 500.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  const maximumLane = Math.max(0, ...data.segments.map((segment) => segment.lane));
+  const trackStride = (maximumLane + 2) * 28;
+  const height = Math.max(100, data.tracks.length * trackStride + 30);
+  return (
+    <div className="grid gap-4">
+      <p>Protein length: {data.proteinLength} aa</p>
+      <div className="overflow-x-auto rounded-md border bg-card p-3">
+        <svg
+          aria-label={`Candidate sequence map for a ${data.proteinLength} amino-acid protein`}
+          className="min-w-[720px]"
+          role="img"
+          viewBox={`0 0 1120 ${height}`}
+        >
+          {data.tracks.map((track, trackIndex) => (
+            <g key={track.id}>
+              <text className="fill-foreground text-xs" x="0" y={trackIndex * trackStride + 20}>
+                {track.label}
+              </text>
+              <line
+                className="stroke-border"
+                x1="110"
+                x2="1110"
+                y1={trackIndex * trackStride + 16}
+                y2={trackIndex * trackStride + 16}
+              />
+            </g>
+          ))}
+          {data.segments.map((segment) => {
+            const trackIndex = Math.max(
+              0,
+              data.tracks.findIndex((track) => track.id === segment.trackId),
+            );
+            const geometry = sequenceSegmentGeometry(
+              segment.start,
+              segment.end,
+              data.proteinLength,
+            );
+            const y = trackIndex * trackStride + 8 + segment.lane * 24;
+            return (
+              <Link
+                aria-label={`${segment.label}, residues ${segment.start} to ${segment.end}, ${segment.category}`}
+                key={segment.candidateId}
+                to={`?track=${segment.trackId}&candidate=${segment.candidateId}&view=sequence`}
+              >
+                <rect
+                  className={
+                    segment.category === 'RECOMMENDED'
+                      ? 'fill-primary'
+                      : segment.category === 'REVIEW'
+                        ? 'fill-amber-500'
+                        : 'fill-muted-foreground'
+                  }
+                  height="16"
+                  rx="3"
+                  width={geometry.width}
+                  x={110 + geometry.x}
+                  y={y}
+                />
+              </Link>
+            );
+          })}
+        </svg>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Track</TableHead>
+            <TableHead>Candidate</TableHead>
+            <TableHead>Coordinates</TableHead>
+            <TableHead>Category</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.segments.map((segment) => (
+            <TableRow key={segment.candidateId}>
+              <TableCell>{segment.trackId}</TableCell>
+              <TableCell>
+                <Link
+                  className="font-mono text-primary hover:underline"
+                  to={`?track=${segment.trackId}&candidate=${segment.candidateId}&view=sequence`}
+                >
+                  {segment.label}
+                </Link>
+              </TableCell>
+              <TableCell>
+                {segment.start}–{segment.end}
+              </TableCell>
+              <TableCell>{segment.category}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+export function EvidencePage() {
+  const runId = id(useParams().runId);
+  const [depth, setDepth] = useState(2);
+  const query = useEvidence(runId, depth);
+  if (query.isLoading) return <LoadingState label="Loading evidence" />;
+  if (query.isError)
+    return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
+  if (!query.data) return null;
+  const nodeLabels = new Map(query.data.nodes.map((node) => [node.id, node.data.label]));
+  return (
+    <>
+      {heading(
+        'Evidence Explorer',
+        'Stored scientific relations with a complete tabular alternative.',
+      )}
+      <div className="flex items-center gap-2">
+        <label htmlFor="depth">Depth</label>
+        <Select value={String(depth)} onValueChange={(value) => setDepth(Number(value))}>
+          <SelectTrigger id="depth" className="w-24">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {[1, 2, 3, 4].map((value) => (
+                <SelectItem key={value} value={String(value)}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+      <Card>
+        <CardContent className="h-[640px] p-0">
+          <GraphCanvas graph={query.data} label="Scientific evidence relationship graph" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Relationship table</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Relation</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Target</TableHead>
+                <TableHead>Provenance</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {query.data.edges.map((edge) => (
+                <TableRow key={edge.id}>
+                  <TableCell>{edge.relation}</TableCell>
+                  <TableCell>{nodeLabels.get(edge.source) ?? edge.source}</TableCell>
+                  <TableCell>{nodeLabels.get(edge.target) ?? edge.target}</TableCell>
+                  <TableCell>{edge.provenance ?? 'Stored relation'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+export function ReportsPage() {
+  const runId = id(useParams().runId);
+  const artifacts = useArtifacts(runId);
+  const run = useRun(runId);
+  const create = useCreateReport(runId);
+  if (artifacts.isLoading || run.isLoading) return <LoadingState label="Loading reports" />;
+  if (artifacts.isError || run.isError)
+    return (
+      <ErrorState
+        message={(artifacts.error ?? run.error)?.message ?? 'Reports are unavailable.'}
+        onRetry={() => {
+          void artifacts.refetch();
+          void run.refetch();
+        }}
+      />
+    );
+  const approvalRequired = run.data?.approvalRequirements.includes('SHORTLIST') ?? true;
+  return (
+    <>
+      {heading('Reports', 'Generate and download reproducibility artifacts.')}
+      <Alert
+        className={
+          run.data?.executionMode === 'SYNTHETIC' || run.data?.executionMode === 'HYBRID'
+            ? 'border-fixture-border bg-fixture'
+            : undefined
+        }
+      >
+        <FileText aria-hidden="true" />
+        <AlertTitle>
+          {run.data?.executionMode === 'SYNTHETIC' || run.data?.executionMode === 'HYBRID'
+            ? 'OFFLINE SYNTHETIC DEMONSTRATION REPORT'
+            : 'Computational prioritization report'}
+        </AlertTitle>
+        <AlertDescription>
+          {run.data?.executionMode === 'SYNTHETIC' || run.data?.executionMode === 'HYBRID'
+            ? 'The exported report states scientificUse = false and identifies deterministic demonstration values that must not be interpreted as validated scientific predictions.'
+            : 'Exports preserve run quality, profiles, provenance, and the experimental-validation disclaimer.'}
+        </AlertDescription>
+      </Alert>
+      <Button
+        disabled={create.isPending || approvalRequired}
+        title={approvalRequired ? 'Approve a shortlist before generating reports.' : undefined}
+        onClick={() => create.mutate()}
+      >
+        <RefreshCw aria-hidden="true" />
+        {create.isPending ? 'Generating…' : 'Generate report'}
+      </Button>
+      {approvalRequired ? (
+        <p className="text-sm text-muted-foreground">
+          Report creation is locked until the current ranking snapshot has an approved shortlist.
+        </p>
+      ) : null}
+      {create.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Report generation failed</AlertTitle>
+          <AlertDescription>{create.error.message}</AlertDescription>
+        </Alert>
+      ) : null}
+      {artifacts.data?.items.length ? (
+        <Card>
+          <CardContent className="pt-6">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Artifact</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>SHA-256</TableHead>
+                  <TableHead>Download</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {artifacts.data.items.map((artifact) => (
+                  <TableRow key={artifact.id}>
+                    <TableCell>{artifact.filename}</TableCell>
+                    <TableCell>{artifact.sizeBytes.toLocaleString()} bytes</TableCell>
+                    <TableCell className="max-w-48 truncate font-mono">{artifact.sha256}</TableCell>
+                    <TableCell>
+                      <Button asChild size="sm" variant="outline">
+                        <a href={`/api/v1/artifacts/${artifact.id}/download`}>
+                          <Download aria-hidden="true" />
+                          Download
+                        </a>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        <EmptyState title="No artifacts" message="Approved shortlist artifacts will appear here." />
+      )}
+    </>
+  );
+}
+
+export function DiagnosticsPage() {
+  const data = useDiagnostics();
+  const loading = Object.values(data).some((query) => query.isLoading);
+  if (loading) return <LoadingState label="Loading diagnostics" />;
+  const partial = Object.values(data).some((query) => query.isError);
+  return (
+    <>
+      {heading(
+        'System Diagnostics',
+        'Read-only connector, runtime, fixture, profile, and build health.',
+      )}
+      {partial ? (
+        <Alert>
+          <AlertTriangle aria-hidden="true" />
+          <AlertTitle>Partial diagnostics</AlertTitle>
+          <AlertDescription>One or more operational endpoints are unavailable.</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Connectors</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.health.data?.items.map((item) => (
+              <div
+                className="flex items-center justify-between border-b py-3 last:border-0"
+                key={item.connectorId}
+              >
+                <span>{item.connectorId}</span>
+                <Badge
+                  variant={
+                    item.health === 'AVAILABLE'
+                      ? 'live'
+                      : item.health === 'DEGRADED'
+                        ? 'partial'
+                        : 'failed'
+                  }
+                >
+                  {item.health}
+                </Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Runtime</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            <p>Database: {data.runtime.data?.databaseStatus ?? 'Unavailable'}</p>
+            <p>Artifacts: {data.runtime.data?.artifactPathStatus ?? 'Unavailable'}</p>
+            <p>LLM: {data.runtime.data?.llmEnabled ? 'Enabled' : 'Disabled'}</p>
+            <p>Application: {data.runtime.data?.build.applicationVersion ?? 'Unavailable'}</p>
+            <p>Specification: {data.runtime.data?.build.specificationVersion ?? 'Unavailable'}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Fixture manifest</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.runtime.data?.fixtureManifest.entries.map((entry) => (
+              <p key={entry.fixtureId}>
+                <CheckCircle2 aria-hidden="true" className="mr-2 inline text-primary" />
+                {entry.organism} · {entry.proteinName}
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Loaded profiles</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.profiles.data?.items.map((profile) => (
+              <p key={`${profile.name}-${profile.version}`}>
+                {profile.name} {profile.version} — {profile.approved ? 'Approved' : 'Unapproved'}
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
+}
+
+export function AboutPage() {
+  return (
+    <>
+      {heading(
+        'About ImmunoGraph',
+        'Transparent and reproducible computational epitope prioritization.',
+      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Responsible-use boundary</CardTitle>
+        </CardHeader>
+        <CardContent className="prose max-w-none">
+          <p>
+            ImmunoGraph combines authoritative predictors, deterministic constraints, visible
+            provenance, and explicit researcher approval.
+          </p>
+          <p>
+            Results are computationally prioritized candidates, not validated vaccine candidates,
+            and require experimental validation.
+          </p>
+        </CardContent>
+      </Card>
+    </>
+  );
+}

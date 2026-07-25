@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+package-lock.json
+data/generated
+*.db
+*.db-journal
+.vitest-debug.json
+*.md

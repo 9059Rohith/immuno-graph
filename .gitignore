@@ -1,0 +1,16 @@
+node_modules/
+.venv*/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+artifacts/
+data/generated/*
+!data/generated/README.md
+apps/web/.vite/

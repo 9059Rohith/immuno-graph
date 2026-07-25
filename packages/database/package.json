@@ -1,0 +1,31 @@
+{
+  "name": "@immunograph/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist",
+    "prisma"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "db:generate": "tsx src/prisma-command.ts generate --schema prisma/schema.prisma",
+    "db:migrate": "tsx src/prisma-command.ts migrate deploy --schema prisma/schema.prisma",
+    "db:seed": "tsx src/seed.ts"
+  },
+  "dependencies": {
+    "@immunograph/shared": "0.1.0",
+    "@prisma/client": "6.19.3",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "prisma": "6.19.3"
+  }
+}

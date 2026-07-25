@@ -1,0 +1,242 @@
+import {
+  canonicalJsonSha256,
+  generatePeptides,
+  predictSyntheticBinding,
+  SYNTHETIC_BINDING_ALGORITHM,
+  SYNTHETIC_BINDING_ALGORITHM_VERSION,
+  validateFasta,
+} from '@immunograph/algorithms';
+import { loadReferenceBundle } from '@immunograph/database';
+import { ControllerDecorator, ToolDecorator } from '@nitrostack/core';
+import type { ExecutionContext } from '@nitrostack/core';
+import type { z } from 'zod';
+
+import type { CapabilityPort } from '../common/capability-port.js';
+import { executeTool, ToolExecutionError } from '../common/executor.js';
+import { HybridBindingCapabilityPort } from '../common/hybrid-binding-capability-port.js';
+import { loadMcpEnvironment } from '../config/environment.js';
+import {
+  generatePeptidesContract,
+  predictBcellContract,
+  predictMhciContract,
+  predictMhciiContract,
+  predictSyntheticBindingContract,
+  toolOptions,
+  validateSequenceContract,
+} from '../tool-contracts.js';
+
+const CATEGORY = 'Prediction Tools';
+const referenceBundle = loadReferenceBundle();
+
+// Build the default capability port from the current environment at module load time.
+// This wires IEDB live calls when IEDB_LIVE_ENABLED=true, and falls back to fixtures
+// otherwise — providing seamless offline/backup mode without code changes.
+const buildDefaultCapabilityPort = (): CapabilityPort => {
+  const env = loadMcpEnvironment();
+  return new HybridBindingCapabilityPort({
+    iedb: {
+      enabled: env.IEDB_LIVE_ENABLED,
+      timeoutMs: env.IEDB_TIMEOUT_MS,
+      maximumResponseBytes: env.IEDB_MAX_RESPONSE_BYTES,
+      ...(env.IEDB_MHCI_URL ? { mhciUrl: env.IEDB_MHCI_URL } : {}),
+      ...(env.IEDB_MHCII_URL ? { mhciiUrl: env.IEDB_MHCII_URL } : {}),
+    },
+    mhcflurry: {
+      enabled: env.MHCFLURRY_ENABLED,
+      command: env.MHCFLURRY_COMMAND,
+      methodVersion: env.MHCFLURRY_METHOD_VERSION,
+      timeoutMs: env.MHCFLURRY_TIMEOUT_MS,
+      maximumResponseBytes: env.MHCFLURRY_MAX_RESPONSE_BYTES,
+    },
+  });
+};
+
+@ControllerDecorator()
+export class PredictionController {
+  private capabilities: CapabilityPort;
+
+  constructor(capabilities: CapabilityPort = buildDefaultCapabilityPort()) {
+    this.capabilities = capabilities;
+  }
+
+  useCapabilityPort(capabilities: CapabilityPort): this {
+    this.capabilities = capabilities;
+    return this;
+  }
+
+  @ToolDecorator(toolOptions(validateSequenceContract, CATEGORY))
+  validateSequence(input: unknown, context: ExecutionContext) {
+    return executeTool({
+      toolName: validateSequenceContract.name,
+      input,
+      inputSchema: validateSequenceContract.inputSchema,
+      dataSchema: validateSequenceContract.dataSchema,
+      context,
+      operation: async (validated) => {
+        if (validated.fasta.trim().length === 0) {
+          throw new ToolExecutionError('FASTA_EMPTY', 'VALIDATION', 'A FASTA record is required.');
+        }
+        const { aminoAcids, fastaRules } = await referenceBundle;
+        const result = validateFasta(validated.fasta, {
+          alphabet: aminoAcids.residues
+            .filter(({ allowedInStrictProfile }) => allowedInStrictProfile)
+            .map(({ oneLetter }) => oneLetter),
+          maxBytes: fastaRules.maxBytes,
+          maxResidues: fastaRules.maxResidues,
+        });
+        if (!result.ok) {
+          const first = result.errors[0];
+          const code =
+            first?.code === 'FASTA_SEQUENCE_REQUIRED'
+              ? 'FASTA_EMPTY'
+              : first?.code === 'FASTA_INVALID_RESIDUE'
+                ? 'INVALID_RESIDUE'
+                : first?.code === 'FASTA_SEQUENCE_TOO_LONG'
+                  ? 'SEQUENCE_TOO_LONG'
+                  : (first?.code ?? 'FASTA_INVALID');
+          throw new ToolExecutionError(
+            code,
+            'VALIDATION',
+            first?.message ?? 'The FASTA record is invalid.',
+            false,
+            { errors: result.errors },
+          );
+        }
+        return { ...result.value, warnings: [] };
+      },
+    });
+  }
+
+  @ToolDecorator(toolOptions(generatePeptidesContract, CATEGORY))
+  generateCandidatePeptides(input: unknown, context: ExecutionContext) {
+    return executeTool({
+      toolName: generatePeptidesContract.name,
+      input,
+      inputSchema: generatePeptidesContract.inputSchema,
+      dataSchema: generatePeptidesContract.dataSchema,
+      context,
+      operation: (validated) => ({
+        candidates: generatePeptides(
+          validated.sequence,
+          validated.candidateType,
+          validated.peptideLengths,
+        ),
+      }),
+    });
+  }
+
+  @ToolDecorator(toolOptions(predictMhciContract, CATEGORY))
+  predictMhci(input: unknown, context: ExecutionContext) {
+    return this.invokeCapability(predictMhciContract, input, context);
+  }
+
+  @ToolDecorator(toolOptions(predictMhciiContract, CATEGORY))
+  predictMhcii(input: unknown, context: ExecutionContext) {
+    return this.invokeCapability(predictMhciiContract, input, context);
+  }
+
+  @ToolDecorator(toolOptions(predictBcellContract, CATEGORY))
+  predictBcell(input: unknown, context: ExecutionContext) {
+    return executeTool({
+      toolName: predictBcellContract.name,
+      input,
+      inputSchema: predictBcellContract.inputSchema,
+      dataSchema: predictBcellContract.dataSchema,
+      context,
+      operation: async (validated) => {
+        const requestsGraphBepi = validated.methods.some(
+          (method) => method.toLowerCase() === 'graphbepi',
+        );
+        const permitsFixtures = [
+          'CACHE_THEN_LIVE_THEN_FIXTURE',
+          'LIVE_THEN_CACHE_THEN_FIXTURE',
+          'FIXTURE_ONLY',
+        ].includes(validated.fallbackPolicy);
+        if (requestsGraphBepi && !permitsFixtures) {
+          throw new ToolExecutionError(
+            'GRAPHBEPI_FIXTURE_REQUIRED',
+            'SCIENTIFIC',
+            'GraphBepi is fixture-only in MVP v1 and requires a fixture-permitting fallback policy.',
+          );
+        }
+        const capability = requestsGraphBepi ? 'predict_bcell_fixture' : predictBcellContract.name;
+        const result = (await this.capabilities.invoke(capability, validated)) as z.infer<
+          typeof predictBcellContract.dataSchema
+        >;
+        if (
+          requestsGraphBepi &&
+          result.provenance.some((entry) => entry.status === 'LIVE' || entry.status === 'CACHED')
+        ) {
+          throw new ToolExecutionError(
+            'GRAPHBEPI_PROVENANCE_INVALID',
+            'CONNECTOR',
+            'GraphBepi cannot return LIVE or CACHED provenance in MVP v1.',
+          );
+        }
+        return result;
+      },
+    });
+  }
+
+  @ToolDecorator(toolOptions(predictSyntheticBindingContract, CATEGORY))
+  predictSyntheticBindingTool(input: unknown, context: ExecutionContext) {
+    return executeTool({
+      toolName: predictSyntheticBindingContract.name,
+      input,
+      inputSchema: predictSyntheticBindingContract.inputSchema,
+      dataSchema: predictSyntheticBindingContract.dataSchema,
+      context,
+      operation: (validated) => ({
+        observations: predictSyntheticBinding(validated).map((observation) => ({
+          ...observation,
+          rawFields: {
+            predictionSource: 'SYNTHETIC',
+            scientificUse: false,
+            validationStatus: 'DEMONSTRATION_ONLY',
+            algorithm: SYNTHETIC_BINDING_ALGORITHM,
+            algorithmVersion: SYNTHETIC_BINDING_ALGORITHM_VERSION,
+          },
+        })),
+        provenance: {
+          connectorId: 'immunograph-synthetic-predictor',
+          connectorVersion: '1.0.0',
+          method: validated.method,
+          methodVersion: validated.methodVersion,
+          status: 'SYNTHETIC' as const,
+          sourceUri: 'https://immunograph.local/synthetic-predictor',
+          parameters: { candidateType: validated.candidateType },
+          predictionSource: 'SYNTHETIC' as const,
+          scientificUse: false,
+          validationStatus: 'DEMONSTRATION_ONLY' as const,
+          algorithm: SYNTHETIC_BINDING_ALGORITHM,
+          algorithmVersion: SYNTHETIC_BINDING_ALGORITHM_VERSION,
+          datasetVersion: validated.datasetVersion,
+          datasetHash: canonicalJsonSha256({
+            datasetVersion: validated.datasetVersion,
+            algorithm: SYNTHETIC_BINDING_ALGORITHM,
+            algorithmVersion: SYNTHETIC_BINDING_ALGORITHM_VERSION,
+          }),
+        },
+      }),
+    });
+  }
+
+  private invokeCapability<TInput extends z.ZodTypeAny, TData extends z.ZodTypeAny>(
+    contract: { name: string; inputSchema: TInput; dataSchema: TData },
+    input: unknown,
+    context: ExecutionContext,
+  ) {
+    return executeTool({
+      toolName: contract.name,
+      input,
+      inputSchema: contract.inputSchema,
+      dataSchema: contract.dataSchema,
+      context,
+      operation: async (validated) =>
+        this.capabilities.invoke(contract.name, validated) as Promise<z.infer<TData>>,
+    });
+  }
+}
+
+// Keep NitroStack's default module composition free of constructor dependencies.
+Reflect.defineMetadata('design:paramtypes', [], PredictionController);
