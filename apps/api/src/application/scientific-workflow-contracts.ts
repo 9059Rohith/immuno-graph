@@ -140,6 +140,50 @@ export const scientificCoverageDataSchema = z.object({
   provenance: connectorProvenanceSchema,
 });
 
+export const shortlistOptimizationDataSchema = z.object({
+  steps: z.array(
+    z.object({
+      candidateId: identifier,
+      marginalGain: unit,
+      cumulativeCoverage: unit,
+    }),
+  ),
+  selectedCandidateIds: z.array(identifier),
+  finalCoverage: unit,
+  coverageByPopulation: z.record(unit).optional(),
+  constructSequence: z.string().optional(),
+  averageCandidateScore: unit.optional(),
+  redundancyPenalty: unit.optional(),
+  objectiveScore: unit.optional(),
+  confidence: z
+    .object({
+      label: z.enum(['HIGH', 'MEDIUM', 'LOW']),
+      score: unit,
+      uncertainty: unit,
+      calibrationMethod: identifier,
+      scientificUse: z.literal(false),
+      reasons: z.array(z.string()),
+    })
+    .strict()
+    .optional(),
+  manufacturability: z
+    .object({
+      status: z.enum(['PASS', 'WARN', 'FAIL']),
+      checks: z.array(
+        z
+          .object({
+            ruleId: identifier,
+            status: z.enum(['PASS', 'WARN', 'FAIL']),
+            message: z.string(),
+          })
+          .strict(),
+      ),
+    })
+    .strict()
+    .optional(),
+  provenance: connectorProvenanceSchema,
+});
+
 export const ruleOutcomeSchema = z.object({
   ruleId: identifier,
   ruleVersion: identifier,

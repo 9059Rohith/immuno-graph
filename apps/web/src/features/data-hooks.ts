@@ -14,6 +14,7 @@ import {
   runDetailSchema,
   runtimeSettingsSchema,
   sequenceMapSchema,
+  shortlistOptimizationSchema,
 } from '@immunograph/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -81,6 +82,21 @@ export const useCoverageVisualization = (id: string) =>
     queryFn: () =>
       apiRequest(`/runs/${id}/visualizations/population-coverage`, coverageVisualizationSchema),
     enabled: id !== '',
+  });
+export const useShortlistOptimization = (
+  id: string,
+  track: 'MHCI' | 'MHCII',
+  options?: { enabled?: boolean },
+) =>
+  useQuery({
+    queryKey: ['shortlist-optimization', id, track],
+    queryFn: () =>
+      apiRequest(
+        `/runs/${id}/shortlist-optimization?track=${track}`,
+        shortlistOptimizationSchema,
+      ),
+    enabled: id !== '' && (options?.enabled ?? true),
+    retry: false,
   });
 export const useArtifacts = (id: string) =>
   useQuery({
@@ -165,7 +181,11 @@ export function useApproveConfiguration(runId: string) {
         runDetailSchema,
         apiJson('POST', { decision: 'APPROVE', ...body }, idempotencyKey('configuration-approval')),
       ),
-    onSuccess: (run) => queryClient.setQueryData(queryKeys.run(run.id), run),
+    onSuccess: (run) => {
+      queryClient.setQueryData(queryKeys.run(run.id), run);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.candidates(run.id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.artifacts(run.id) });
+    },
   });
 }
 
@@ -178,7 +198,13 @@ export function useStartRun(runId: string) {
         runDetailSchema,
         apiJson('POST', {}, idempotencyKey('run-start')),
       ),
-    onSuccess: (run) => queryClient.setQueryData(queryKeys.run(run.id), run),
+    onSuccess: (run) => {
+      queryClient.setQueryData(queryKeys.run(run.id), run);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.candidates(run.id) });
+      void queryClient.invalidateQueries({ queryKey: ['coverage-view', run.id] });
+      void queryClient.invalidateQueries({ queryKey: ['shortlist-optimization', run.id] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.artifacts(run.id) });
+    },
   });
 }
 

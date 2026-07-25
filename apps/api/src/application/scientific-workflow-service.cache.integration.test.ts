@@ -210,6 +210,7 @@ describe('scientific workflow prediction cache', () => {
     const runId = await createRunningRun({
       requestedExecutionMode: 'SYNTHETIC',
       fallbackPolicy: 'CACHE_THEN_LIVE_THEN_FIXTURE',
+      populations: ['synthetic-population-alpha', 'synthetic-population-beta'],
     });
     const gateway = createGateway(liveBindingResult, { synthetic: true });
     const workflow = new ScientificWorkflowService(
@@ -229,7 +230,15 @@ describe('scientific workflow prediction cache', () => {
     expect(run?.executionMode).toBe('SYNTHETIC');
     expect(executions.every(({ sourceStatus }) => sourceStatus === 'SYNTHETIC')).toBe(true);
     expect(candidates.length).toBeGreaterThan(0);
+    const optimization = await database.repositories.shortlistOptimizationResults.findLatest(
+      runId,
+      'MHCI',
+    );
+    expect(optimization?.algorithmId).toBe('deterministic-genetic-construct-optimizer');
+    expect(optimization?.selectionSteps.length).toBeGreaterThan(0);
+    expect(optimization?.finalCoverageResult.projectedCoverage).toBeGreaterThan(0);
     expect(gateway.calls).toContain('predict_synthetic_binding');
+    expect(gateway.calls).toContain('optimize_shortlist_coverage');
   });
 });
 
@@ -390,6 +399,36 @@ function resolveToolData(
           consensus: 0.995,
         })),
       };
+    case 'calculate_synthetic_population_coverage':
+      return {
+        populations: (input as { populationIds: string[] }).populationIds.map(
+          (populationId, index) => ({
+            populationId,
+            projectedCoverage: index === 0 ? 0.42 : 0.37,
+            averageHits: 0.5,
+            alleleCarrierProbabilities: [
+              { allele: 'HLA-A*02:01', carrierProbability: index === 0 ? 0.42 : 0.37 },
+            ],
+          }),
+        ),
+        unavailablePopulationIds: [],
+        provenance: {
+          connectorId: 'immunograph-synthetic-coverage',
+          connectorVersion: '1.0.0',
+          method: 'synthetic-diploid-independence-demonstration',
+          methodVersion: '1.0.0',
+          status: 'SYNTHETIC',
+          sourceUri: 'https://immunograph.local/reference/hla-alleles',
+          parameters: { classMode: 'CLASS_I' },
+          predictionSource: 'SYNTHETIC',
+          scientificUse: false,
+          validationStatus: 'DEMONSTRATION_ONLY',
+          algorithm: 'DeterministicSyntheticPopulationCoverage',
+          algorithmVersion: '1.0.0',
+          datasetVersion: 'synthetic-hla-v1',
+          datasetHash: '4'.repeat(64),
+        },
+      };
     case 'validate_thresholds':
       return {
         ruleProfileVersion: 'mvp-v1.0',
@@ -420,6 +459,60 @@ function resolveToolData(
       };
     case 'rank_candidates':
       return rankCandidates(input);
+    case 'optimize_shortlist_coverage':
+      return {
+        steps: [
+          {
+            candidateId: (input as { eligibleCandidateIds: string[] }).eligibleCandidateIds[0],
+            marginalGain: 0.395,
+            cumulativeCoverage: 0.395,
+          },
+        ],
+        selectedCandidateIds: [
+          (input as { eligibleCandidateIds: string[] }).eligibleCandidateIds[0],
+        ],
+        finalCoverage: 0.395,
+        coverageByPopulation: {
+          'synthetic-population-alpha': 0.42,
+          'synthetic-population-beta': 0.37,
+        },
+        constructSequence: 'ACDEFGHIK',
+        averageCandidateScore: 0.895,
+        redundancyPenalty: 0,
+        objectiveScore: 0.63,
+        confidence: {
+          label: 'MEDIUM',
+          score: 0.67,
+          uncertainty: 0.33,
+          calibrationMethod: 'deterministic-evidence-quality-bins',
+          scientificUse: false,
+          reasons: ['No live scientific predictor provenance'],
+        },
+        manufacturability: {
+          status: 'PASS',
+          checks: [
+            {
+              ruleId: 'MFG-LENGTH-001',
+              status: 'PASS',
+              message: 'Construct length 9/500.',
+            },
+          ],
+        },
+        provenance: {
+          connectorId: 'immunograph-construct-optimizer',
+          connectorVersion: '1.0.0',
+          method: 'deterministic-genetic-construct-optimizer',
+          methodVersion: '1.0.0',
+          status: 'SYNTHETIC',
+          sourceUri: 'https://immunograph.local/algorithms/construct-optimization',
+          parameters: { scientificUse: false },
+          predictionSource: 'SYNTHETIC',
+          scientificUse: false,
+          validationStatus: 'DEMONSTRATION_ONLY',
+          algorithm: 'deterministic-genetic-construct-optimizer',
+          algorithmVersion: '1.0.0',
+        },
+      };
     default:
       throw new Error(`Unexpected tool call ${toolName}.`);
   }

@@ -249,6 +249,15 @@ export function mapCandidateComparison(
 }
 
 export function mapShortlistOptimization(record: ShortlistRecord): ShortlistOptimizationResponse {
+  const provenance = JSON.parse(record.finalCoverageResult.provenanceJson) as {
+    coverageByPopulation?: Record<string, number>;
+    constructSequence?: string;
+    averageCandidateScore?: number;
+    redundancyPenalty?: number;
+    objectiveScore?: number;
+    confidence?: unknown;
+    manufacturability?: unknown;
+  };
   return shortlistOptimizationResponseSchema.parse({
     rankingSnapshotHash: record.snapshotHash,
     track: record.track,
@@ -262,5 +271,12 @@ export function mapShortlistOptimization(record: ShortlistRecord): ShortlistOpti
       reasonCode: step.reasonCode,
     })),
     finalCoverage: record.finalCoverageResult.projectedCoverage,
+    coverageByPopulation: provenance.coverageByPopulation,
+    constructSequence: provenance.constructSequence,
+    averageCandidateScore: provenance.averageCandidateScore,
+    redundancyPenalty: provenance.redundancyPenalty,
+    objectiveScore: provenance.objectiveScore,
+    confidence: provenance.confidence,
+    manufacturability: provenance.manufacturability,
   });
 }

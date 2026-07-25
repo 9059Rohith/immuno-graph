@@ -57,9 +57,11 @@ import {
   useProject,
   useRun,
   useSequenceMap,
+  useShortlistOptimization,
   useStartRun,
   useWorkflow,
 } from './data-hooks';
+import { candidateListParams } from './candidate-query';
 import { createRunConfigurationInput, createShortlistApprovalInput } from './workflow-actions';
 import { GraphCanvas } from './graph-canvas';
 import { sequenceSegmentGeometry } from './sequence-geometry';
@@ -784,7 +786,7 @@ export function RunPage() {
         <Button asChild>
           <Link to={`/runs/${runId}/workflow`}>View workflow</Link>
         </Button>
-        {run.status === 'COMPLETED' ? (
+        {run.status === 'COMPLETED' || run.status === 'AWAITING_SHORTLIST_APPROVAL' ? (
           <Button asChild variant="outline">
             <Link to={`/runs/${runId}/candidates`}>Review candidates</Link>
           </Button>
@@ -865,20 +867,20 @@ export function CandidatesPage() {
   const [search, setSearch] = useSearchParams();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const track = search.get('track') ?? 'MHCI';
-  const params = new URLSearchParams(search);
-  params.set('track', track);
-  params.set('sort', 'rank');
-  params.set('limit', '50');
+  const params = candidateListParams(search, track);
   const runQuery = useRun(runId);
-  const query = useCandidates(runId, params, { enabled: runQuery.data?.status === 'COMPLETED' });
-  const detail = useCandidate(runId, search.get('candidate') ?? undefined, {
-    enabled: runQuery.data?.status === 'COMPLETED',
-  });
+  const candidatesAvailable =
+    runQuery.data?.status === 'COMPLETED' ||
+    runQuery.data?.status === 'AWAITING_SHORTLIST_APPROVAL';
+  const query = useCandidates(runId, params, { enabled: candidatesAvailable });
+  const selectedCandidateId = search.get('candidate') ?? undefined;
+  const detail = useCandidate(runId, selectedCandidateId, { enabled: candidatesAvailable });
   const compare = useCompareCandidates(runId);
   if (runQuery.isLoading || query.isLoading) return <LoadingState label="Loading candidates" />;
   if (runQuery.isError)
     return <ErrorState message={runQuery.error.message} onRetry={() => void runQuery.refetch()} />;
-  if (runQuery.data?.status !== 'COMPLETED')
+  if (!runQuery.data) return null;
+  if (!candidatesAvailable)
     return (
       <EmptyState
         title="Run not complete"
@@ -888,6 +890,17 @@ export function CandidatesPage() {
   if (query.isError)
     return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
   if (!query.data) return null;
+  const run = runQuery.data;
+  const visibleCandidateIds = new Set(query.data.items.map((candidate) => candidate.id));
+  const activeSelectedIds = selectedIds.filter((candidateId) =>
+    visibleCandidateIds.has(candidateId),
+  );
+  const shortlistSelectedCandidates = query.data.items.filter(
+    (candidate) =>
+      activeSelectedIds.includes(candidate.id) &&
+      candidate.selectable &&
+      candidate.category !== 'REJECTED',
+  );
   return (
     <>
       {heading(
@@ -992,13 +1005,19 @@ export function CandidatesPage() {
           }
         />
         <Button
-          disabled={selectedIds.length < 2 || selectedIds.length > 5 || compare.isPending}
+          disabled={
+            activeSelectedIds.length < 2 || activeSelectedIds.length > 5 || compare.isPending
+          }
           variant="outline"
-          onClick={() => compare.mutate(selectedIds)}
+          onClick={() => compare.mutate(activeSelectedIds)}
         >
-          {compare.isPending ? 'Comparing…' : `Compare selected (${selectedIds.length})`}
+          {compare.isPending ? 'Comparing…' : `Compare selected (${activeSelectedIds.length})`}
         </Button>
       </div>
+      <p className="text-sm text-muted-foreground">
+        Select any 2–5 visible candidates to compare them. Only non-rejected candidates are eligible
+        for shortlist approval.
+      </p>
       {query.data.items.length === 0 ? (
         <EmptyState
           title="No candidates"
@@ -1028,7 +1047,6 @@ export function CandidatesPage() {
                       <Checkbox
                         aria-label={`Select ${candidate.peptide}`}
                         checked={selectedIds.includes(candidate.id)}
-                        disabled={!candidate.selectable || candidate.category === 'REJECTED'}
                         onCheckedChange={(checked) =>
                           setSelectedIds((current) =>
                             checked
@@ -1094,6 +1112,13 @@ export function CandidatesPage() {
         </Alert>
       ) : null}
       {compare.data ? <CandidateComparison data={compare.data} /> : null}
+      {detail.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Candidate detail failed</AlertTitle>
+          <AlertDescription>{detail.error.message}</AlertDescription>
+        </Alert>
+      ) : null}
+      {detail.isLoading ? <LoadingState label="Loading candidate detail" /> : null}
       {detail.data ? (
         <Card>
           <CardHeader className="flex-row items-start justify-between gap-4">
@@ -1213,11 +1238,15 @@ export function CandidatesPage() {
       ) : null}
       <CandidateSubviews
         runId={runId}
+        runStatus={run.status}
+        track={track}
         search={search}
         setSearch={setSearch}
+        setSelectedIds={setSelectedIds}
         rankingSnapshotHash={query.data.rankingSnapshotHash}
         candidateIds={query.data.items.filter((item) => item.selectable).map((item) => item.id)}
-        selectedIds={selectedIds}
+        selectedCandidates={shortlistSelectedCandidates}
+        selectedIds={shortlistSelectedCandidates.map((candidate) => candidate.id)}
       />
     </>
   );
@@ -1341,25 +1370,42 @@ const displayValue = (item: { value: number | null; unavailableReason: string | 
 
 function CandidateSubviews({
   runId,
+  runStatus,
+  track,
   search,
   setSearch,
+  setSelectedIds,
   rankingSnapshotHash,
   candidateIds,
+  selectedCandidates,
   selectedIds,
 }: {
   runId: string;
+  runStatus: import('@immunograph/shared').RunStatus;
+  track: string;
   search: URLSearchParams;
   setSearch: ReturnType<typeof useSearchParams>[1];
+  setSelectedIds: (candidateIds: string[]) => void;
   rankingSnapshotHash: string;
   candidateIds: string[];
+  selectedCandidates: import('@immunograph/shared').CandidateCard[];
   selectedIds: string[];
 }) {
   const view = search.get('view') ?? 'rankings';
   const sequence = useSequenceMap(runId);
   const coverage = useCoverageVisualization(runId);
+  const optimizableTrack = track === 'MHCI' || track === 'MHCII' ? track : null;
+  const shortlistOptimization = useShortlistOptimization(runId, optimizableTrack ?? 'MHCI', {
+    enabled: view === 'shortlist' && optimizableTrack !== null,
+  });
   const approve = useApproveShortlist(runId);
   const [acknowledged, setAcknowledged] = useState(false);
   const [approvalNote, setApprovalNote] = useState('');
+  const shortlistApproved = runStatus === 'COMPLETED';
+  const visibleOptimizedIds =
+    shortlistOptimization.data?.selectedCandidateIds.filter((candidateId) =>
+      candidateIds.includes(candidateId),
+    ) ?? [];
   return (
     <Card>
       <CardHeader>
@@ -1389,43 +1435,64 @@ function CandidateSubviews({
           ))}
         </div>
         {view === 'sequence' ? (
-          <SequenceMap data={sequence.data} loading={sequence.isLoading} />
+          sequence.isError ? (
+            <ErrorState
+              message={sequence.error.message}
+              onRetry={() => void sequence.refetch()}
+            />
+          ) : (
+            <SequenceMap data={sequence.data} loading={sequence.isLoading} />
+          )
         ) : null}
-        {view === 'coverage' && coverage.data ? (
-          <>
-            <div className="h-72">
-              <ResponsiveContainer>
-                <BarChart
-                  data={coverage.data.populations.map((item) => ({
-                    name: item.label,
-                    coverage: item.coverage.value,
-                  }))}
-                  layout="vertical"
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={100} />
-                  <Bar dataKey="coverage" fill="var(--chart-1)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Population</TableHead>
-                  <TableHead>Estimated coverage</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {coverage.data.populations.map((item) => (
-                  <TableRow key={item.populationId}>
-                    <TableCell>{item.label}</TableCell>
-                    <TableCell>{displayValue(item.coverage)}</TableCell>
+        {view === 'coverage' ? (
+          coverage.isLoading ? (
+            <LoadingState label="Loading population coverage" />
+          ) : coverage.isError ? (
+            <ErrorState
+              message={coverage.error.message}
+              onRetry={() => void coverage.refetch()}
+            />
+          ) : !coverage.data || coverage.data.populations.length === 0 ? (
+            <EmptyState
+              title="No population coverage"
+              message="This run did not request population coverage, so there is no coverage review view."
+            />
+          ) : (
+            <>
+              <div className="h-72">
+                <ResponsiveContainer>
+                  <BarChart
+                    data={coverage.data.populations.map((item) => ({
+                      name: item.label,
+                      coverage: item.coverage.value,
+                    }))}
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={100} />
+                    <Bar dataKey="coverage" fill="var(--chart-1)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Population</TableHead>
+                    <TableHead>Estimated coverage</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </>
+                </TableHeader>
+                <TableBody>
+                  {coverage.data.populations.map((item) => (
+                    <TableRow key={item.populationId}>
+                      <TableCell>{item.label}</TableCell>
+                      <TableCell>{displayValue(item.coverage)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </>
+          )
         ) : null}
         {view === 'shortlist' ? (
           <div className="grid gap-3">
@@ -1436,6 +1503,123 @@ function CandidateSubviews({
                 Shortlisted candidates require experimental validation.
               </AlertDescription>
             </Alert>
+            {optimizableTrack === null ? (
+              <Alert>
+                <AlertTriangle aria-hidden="true" />
+                <AlertTitle>No construct optimizer for this track</AlertTitle>
+                <AlertDescription>
+                  Multi-epitope construct optimization is available for MHC-I and MHC-II tracks in
+                  this MVP.
+                </AlertDescription>
+              </Alert>
+            ) : shortlistOptimization.isLoading ? (
+              <LoadingState label="Loading optimized shortlist" />
+            ) : shortlistOptimization.data ? (
+              <div className="grid gap-3 rounded-md border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">
+                      Optimized {shortlistOptimization.data.track} construct
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {shortlistOptimization.data.algorithmId} v
+                      {shortlistOptimization.data.algorithmVersion}
+                    </p>
+                  </div>
+                  <Badge variant="outline">Deterministic software optimizer</Badge>
+                </div>
+                <div className="grid gap-3 md:grid-cols-4">
+                  <Stat
+                    label="Final coverage"
+                    value={shortlistOptimization.data.finalCoverage.toFixed(3)}
+                  />
+                  <Stat
+                    label="Objective"
+                    value={shortlistOptimization.data.objectiveScore?.toFixed(3) ?? '—'}
+                  />
+                  <Stat
+                    label="Redundancy penalty"
+                    value={shortlistOptimization.data.redundancyPenalty?.toFixed(3) ?? '—'}
+                  />
+                  <Stat
+                    label="Confidence"
+                    value={shortlistOptimization.data.confidence?.label ?? '—'}
+                  />
+                </div>
+                {shortlistOptimization.data.constructSequence ? (
+                  <div>
+                    <p className="mb-1 text-sm font-medium">Construct sequence</p>
+                    <code className="block overflow-x-auto rounded bg-muted p-2 text-xs">
+                      {shortlistOptimization.data.constructSequence}
+                    </code>
+                  </div>
+                ) : null}
+                {shortlistOptimization.data.manufacturability ? (
+                  <div>
+                    <p className="mb-1 text-sm font-medium">
+                      Manufacturability: {shortlistOptimization.data.manufacturability.status}
+                    </p>
+                    <ul className="grid gap-1 text-sm text-muted-foreground">
+                      {shortlistOptimization.data.manufacturability.checks.map((check) => (
+                        <li key={check.ruleId}>
+                          {check.status} · {check.ruleId} · {check.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {shortlistOptimization.data.steps.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Step</TableHead>
+                        <TableHead>Candidate</TableHead>
+                        <TableHead>Marginal gain</TableHead>
+                        <TableHead>Cumulative coverage</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {shortlistOptimization.data.steps.map((step) => (
+                        <TableRow key={`${step.step}-${step.candidateId}`}>
+                          <TableCell>{step.step}</TableCell>
+                          <TableCell className="font-mono text-xs">{step.candidateId}</TableCell>
+                          <TableCell>{step.marginalCoverageGain.toFixed(3)}</TableCell>
+                          <TableCell>{step.cumulativeCoverage.toFixed(3)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : null}
+                {!shortlistApproved ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={visibleOptimizedIds.length === 0}
+                    onClick={() => setSelectedIds(visibleOptimizedIds)}
+                  >
+                    Use optimized shortlist
+                  </Button>
+                ) : null}
+              </div>
+            ) : (
+              <Alert>
+                <AlertTriangle aria-hidden="true" />
+                <AlertTitle>No optimized shortlist yet</AlertTitle>
+                <AlertDescription>
+                  Run execution did not persist an optimizer result for this track yet.
+                </AlertDescription>
+              </Alert>
+            )}
+            {shortlistApproved ? (
+              <Alert>
+                <CheckCircle2 aria-hidden="true" />
+                <AlertTitle>Shortlist already approved</AlertTitle>
+                <AlertDescription>
+                  This run is complete. Report generation is available from the Reports page.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
             <label className="flex items-center gap-2">
               <Checkbox
                 aria-label="Acknowledge computational-only shortlist status"
@@ -1448,6 +1632,28 @@ function CandidateSubviews({
               {selectedIds.length} candidate{selectedIds.length === 1 ? '' : 's'} selected from
               snapshot {rankingSnapshotHash.slice(0, 12)}…
             </p>
+            {selectedCandidates.length === 0 ? (
+              <Alert>
+                <AlertTriangle aria-hidden="true" />
+                <AlertTitle>No candidates selected</AlertTitle>
+                <AlertDescription>
+                  Select one or more non-rejected candidates from the Rankings table before
+                  approving the shortlist.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="rounded-md border p-3">
+                <p className="mb-2 text-sm font-medium">Selected shortlist candidates</p>
+                <ul className="grid gap-1 text-sm">
+                  {selectedCandidates.map((candidate) => (
+                    <li key={candidate.id}>
+                      #{candidate.rank} <span className="font-mono">{candidate.peptide}</span> ·{' '}
+                      {candidate.category} · score {candidate.finalScore.toFixed(3)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <Textarea
               placeholder="Optional approval note"
               value={approvalNote}
@@ -1481,6 +1687,8 @@ function CandidateSubviews({
             >
               {approve.isPending ? 'Approving…' : 'Approve shortlist'}
             </Button>
+              </>
+            )}
           </div>
         ) : null}
       </CardContent>

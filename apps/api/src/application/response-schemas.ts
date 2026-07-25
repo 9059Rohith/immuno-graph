@@ -61,6 +61,37 @@ export const shortlistOptimizationResponseSchema = z
         .strict(),
     ),
     finalCoverage: z.number().min(0).max(1),
+    coverageByPopulation: z.record(z.number().min(0).max(1)).optional(),
+    constructSequence: z.string().optional(),
+    averageCandidateScore: z.number().min(0).max(1).optional(),
+    redundancyPenalty: z.number().min(0).max(1).optional(),
+    objectiveScore: z.number().min(0).max(1).optional(),
+    confidence: z
+      .object({
+        label: z.enum(['HIGH', 'MEDIUM', 'LOW']),
+        score: z.number().min(0).max(1),
+        uncertainty: z.number().min(0).max(1),
+        calibrationMethod: z.string().min(1),
+        scientificUse: z.literal(false),
+        reasons: z.array(z.string()),
+      })
+      .strict()
+      .optional(),
+    manufacturability: z
+      .object({
+        status: z.enum(['PASS', 'WARN', 'FAIL']),
+        checks: z.array(
+          z
+            .object({
+              ruleId: z.string().min(1),
+              status: z.enum(['PASS', 'WARN', 'FAIL']),
+              message: z.string(),
+            })
+            .strict(),
+        ),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

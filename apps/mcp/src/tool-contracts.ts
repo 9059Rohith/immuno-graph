@@ -646,7 +646,8 @@ export const rankCandidatesContract = defineContract({
 
 export const optimizeCoverageContract = defineContract({
   name: 'optimize_shortlist_coverage',
-  description: 'Select a stable T-cell shortlist using authoritative set-level coverage.',
+  description:
+    'Select a stable T-cell shortlist using deterministic construct optimization and set-level coverage.',
   inputSchema: z
     .object({
       runId: identifierSchema,
@@ -656,6 +657,27 @@ export const optimizeCoverageContract = defineContract({
       targetCoverage: unitIntervalSchema.optional(),
       maximumShortlistSize: positiveInteger.optional(),
       method: identifierSchema,
+      candidates: z
+        .array(
+          z
+            .object({
+              candidateId: identifierSchema,
+              candidateType: z.enum(['MHCI', 'MHCII']),
+              peptide: identifierSchema,
+              start: positiveInteger,
+              end: positiveInteger,
+              rank: positiveInteger,
+              finalScore: unitIntervalSchema,
+              agreement: unitIntervalSchema,
+              completeness: unitIntervalSchema,
+              category: z.enum(['RECOMMENDED', 'REVIEW', 'REJECTED']),
+              populationCoverage: z.record(unitIntervalSchema),
+            })
+            .strict(),
+        )
+        .optional(),
+      populationWeights: z.record(z.number().finite().nonnegative()).optional(),
+      linker: identifierSchema.optional(),
     })
     .strict()
     .refine(
@@ -671,6 +693,37 @@ export const optimizeCoverageContract = defineContract({
     ),
     selectedCandidateIds: z.array(identifierSchema),
     finalCoverage: unitIntervalSchema,
+    coverageByPopulation: z.record(unitIntervalSchema).optional(),
+    constructSequence: z.string().optional(),
+    averageCandidateScore: unitIntervalSchema.optional(),
+    redundancyPenalty: unitIntervalSchema.optional(),
+    objectiveScore: unitIntervalSchema.optional(),
+    confidence: z
+      .object({
+        label: z.enum(['HIGH', 'MEDIUM', 'LOW']),
+        score: unitIntervalSchema,
+        uncertainty: unitIntervalSchema,
+        calibrationMethod: identifierSchema,
+        scientificUse: z.literal(false),
+        reasons: z.array(z.string()),
+      })
+      .strict()
+      .optional(),
+    manufacturability: z
+      .object({
+        status: z.enum(['PASS', 'WARN', 'FAIL']),
+        checks: z.array(
+          z
+            .object({
+              ruleId: identifierSchema,
+              status: z.enum(['PASS', 'WARN', 'FAIL']),
+              message: z.string(),
+            })
+            .strict(),
+        ),
+      })
+      .strict()
+      .optional(),
     provenance: connectorProvenanceSchema,
   }),
   exampleInput: {

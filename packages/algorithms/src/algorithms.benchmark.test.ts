@@ -3,6 +3,7 @@ import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
 
 import { calculateConsensus } from './consensus.js';
+import { optimizeMultiEpitopeConstruct, type ConstructCandidate } from './construct-optimization.js';
 import { evaluateBaseHardConstraints } from './constraints.js';
 import { detectDuplicates } from './duplicates.js';
 import { validateFasta } from './fasta.js';
@@ -158,5 +159,43 @@ describe('deterministic algorithm benchmark cases', () => {
     expect(constraintsAndScores.elapsedMilliseconds).toBeLessThan(2_000);
     expect(ranking.result).toHaveLength(10_000);
     expect(ranking.elapsedMilliseconds).toBeLessThan(2_000);
+  });
+
+  it('optimizes a 150-candidate construct shortlist under two seconds', () => {
+    const candidates: ConstructCandidate[] = Array.from({ length: 150 }, (_value, index) => ({
+      candidateId: `candidate-${index}`,
+      candidateType: 'MHCI',
+      peptide: `ACDEFGHI${'KLMNPQRSTVWY'[index % 12]}`,
+      start: index * 3 + 1,
+      end: index * 3 + 9,
+      rank: index + 1,
+      finalScore: 0.5 + (index % 50) / 100,
+      agreement: 0.7 + (index % 20) / 100,
+      completeness: 1,
+      category: index % 13 === 0 ? 'REVIEW' : 'RECOMMENDED',
+      populationCoverage: {
+        INDIA: ((index * 7) % 80) / 100,
+        EUROPE: ((index * 11) % 80) / 100,
+        AFRICA: ((index * 13) % 80) / 100,
+      },
+    }));
+
+    const optimization = benchmark(() =>
+      optimizeMultiEpitopeConstruct({
+        track: 'MHCI',
+        candidates,
+        populationWeights: { INDIA: 0.5, EUROPE: 0.3, AFRICA: 0.2 },
+        maximumShortlistSize: 8,
+        targetCoverage: 0.9,
+        generations: 24,
+        populationSize: 20,
+        seed: 'benchmark',
+      }),
+    );
+
+    expect(optimization.result.selectedCandidateIds.length).toBeGreaterThan(0);
+    expect(optimization.result.selectedCandidateIds.length).toBeLessThanOrEqual(8);
+    expect(optimization.result.finalCoverage).toBeGreaterThan(0);
+    expect(optimization.elapsedMilliseconds).toBeLessThan(2_000);
   });
 });

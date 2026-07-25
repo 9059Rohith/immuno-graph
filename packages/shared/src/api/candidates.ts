@@ -141,7 +141,61 @@ export const candidateComparisonSchema = z
   })
   .strict();
 
+export const shortlistOptimizationSchema = z
+  .object({
+    rankingSnapshotHash: sha256Schema,
+    track: z.enum(['MHCI', 'MHCII']),
+    algorithmId: z.string(),
+    algorithmVersion: z.string(),
+    selectedCandidateIds: z.array(uuidSchema),
+    steps: z.array(
+      z
+        .object({
+          step: z.number().int().positive(),
+          candidateId: uuidSchema,
+          marginalCoverageGain: z.number().min(0).max(1),
+          cumulativeCoverage: z.number().min(0).max(1),
+          reasonCode: z.string(),
+        })
+        .strict(),
+    ),
+    finalCoverage: z.number().min(0).max(1),
+    coverageByPopulation: z.record(z.number().min(0).max(1)).optional(),
+    constructSequence: z.string().optional(),
+    averageCandidateScore: z.number().min(0).max(1).optional(),
+    redundancyPenalty: z.number().min(0).max(1).optional(),
+    objectiveScore: z.number().min(0).max(1).optional(),
+    confidence: z
+      .object({
+        label: z.enum(['HIGH', 'MEDIUM', 'LOW']),
+        score: z.number().min(0).max(1),
+        uncertainty: z.number().min(0).max(1),
+        calibrationMethod: z.string(),
+        scientificUse: z.literal(false),
+        reasons: z.array(z.string()),
+      })
+      .strict()
+      .optional(),
+    manufacturability: z
+      .object({
+        status: z.enum(['PASS', 'WARN', 'FAIL']),
+        checks: z.array(
+          z
+            .object({
+              ruleId: z.string(),
+              status: z.enum(['PASS', 'WARN', 'FAIL']),
+              message: z.string(),
+            })
+            .strict(),
+        ),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
 export type CandidateCard = z.infer<typeof candidateCardSchema>;
 export type CandidateList = z.infer<typeof candidateListSchema>;
 export type CandidateDetail = z.infer<typeof candidateDetailSchema>;
 export type CandidateComparison = z.infer<typeof candidateComparisonSchema>;
+export type ShortlistOptimization = z.infer<typeof shortlistOptimizationSchema>;

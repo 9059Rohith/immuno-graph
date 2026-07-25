@@ -29,7 +29,7 @@ export class CandidateService {
     runId: string;
     track?: 'MHCI' | 'MHCII' | 'BCELL';
     category?: 'RECOMMENDED' | 'REVIEW' | 'REJECTED';
-    sourceStatus?: 'LIVE' | 'CACHED' | 'FIXTURE' | 'FAILED';
+    sourceStatus?: 'LIVE' | 'CACHED' | 'SYNTHETIC' | 'FIXTURE' | 'FAILED';
     allele?: string;
     minScore?: number;
     maxScore?: number;

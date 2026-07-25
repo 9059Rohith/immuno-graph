@@ -2,6 +2,7 @@ import {
   calculateSyntheticCoverage,
   calculateConsensus,
   calculatePreliminaryScore,
+  optimizeMultiEpitopeConstruct,
   normalizeScore,
   rankCandidates,
   SYNTHETIC_COVERAGE_ALGORITHM,
@@ -289,7 +290,88 @@ export class EvidenceController {
 
   @ToolDecorator(toolOptions(optimizeCoverageContract, CATEGORY))
   optimizeShortlistCoverage(input: unknown, context: ExecutionContext) {
-    return this.invokeCapability(optimizeCoverageContract, input, context);
+    return executeTool({
+      toolName: optimizeCoverageContract.name,
+      input,
+      inputSchema: optimizeCoverageContract.inputSchema,
+      dataSchema: optimizeCoverageContract.dataSchema,
+      context,
+      operation: async (validated) => {
+        if (validated.candidates === undefined || validated.candidates.length === 0) {
+          return this.capabilities.invoke(optimizeCoverageContract.name, validated) as Promise<
+            z.infer<typeof optimizeCoverageContract.dataSchema>
+          >;
+        }
+        const eligible = new Set(validated.eligibleCandidateIds);
+        const candidates = validated.candidates.filter((candidate) =>
+          eligible.has(candidate.candidateId),
+        );
+        const track = candidates[0]?.candidateType;
+        if (track === undefined) {
+          throw new ToolExecutionError(
+            'NO_ELIGIBLE_CANDIDATES',
+            'SCIENTIFIC',
+            'No eligible candidates are available for shortlist optimization.',
+            false,
+          );
+        }
+        if (candidates.some((candidate) => candidate.candidateType !== track)) {
+          throw new ToolExecutionError(
+            'MIXED_TRACKS',
+            'SCIENTIFIC',
+            'Shortlist optimization requires one T-cell track at a time.',
+            false,
+          );
+        }
+        const populationWeights =
+          validated.populationWeights ??
+          Object.fromEntries(validated.populationIds.map((populationId) => [populationId, 1]));
+        const optimized = optimizeMultiEpitopeConstruct({
+          track,
+          candidates,
+          populationWeights,
+          maximumShortlistSize: validated.maximumShortlistSize ?? 8,
+          targetCoverage: validated.targetCoverage ?? 0.8,
+          linker: validated.linker ?? 'GPGPG',
+          seed: validated.finalRankingSnapshotHash,
+        });
+        return {
+          steps: optimized.steps.map((step) => ({
+            candidateId: step.candidateId,
+            marginalGain: step.marginalCoverageGain,
+            cumulativeCoverage: step.cumulativeCoverage,
+          })),
+          selectedCandidateIds: optimized.selectedCandidateIds,
+          finalCoverage: optimized.finalCoverage,
+          coverageByPopulation: optimized.coverageByPopulation,
+          constructSequence: optimized.constructSequence,
+          averageCandidateScore: optimized.averageCandidateScore,
+          redundancyPenalty: optimized.redundancyPenalty,
+          objectiveScore: optimized.objectiveScore,
+          confidence: optimized.confidence,
+          manufacturability: optimized.manufacturability,
+          provenance: {
+            connectorId: 'immunograph-construct-optimizer',
+            connectorVersion: '1.0.0',
+            method: optimized.algorithmId,
+            methodVersion: optimized.algorithmVersion,
+            status: 'SYNTHETIC' as const,
+            sourceUri: 'https://immunograph.local/algorithms/construct-optimization',
+            parameters: {
+              populationIds: validated.populationIds,
+              targetCoverage: validated.targetCoverage ?? 0.8,
+              maximumShortlistSize: validated.maximumShortlistSize ?? 8,
+              scientificUse: false,
+            },
+            predictionSource: 'SYNTHETIC' as const,
+            scientificUse: false,
+            validationStatus: 'DEMONSTRATION_ONLY' as const,
+            algorithm: optimized.algorithmId,
+            algorithmVersion: optimized.algorithmVersion,
+          },
+        };
+      },
+    });
   }
 
   private invokeCapability<TInput extends z.ZodTypeAny, TData extends z.ZodTypeAny>(

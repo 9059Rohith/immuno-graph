@@ -1,5 +1,6 @@
 export * from './canonical-json.js';
 export * from './consensus.js';
+export * from './construct-optimization.js';
 export * from './constraints.js';
 export * from './duplicates.js';
 export * from './explanation.js';

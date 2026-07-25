@@ -7,6 +7,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { renderApp } from '@/test/render';
 
+import { candidateListParams } from './candidate-query';
+
 const { approveConfiguration, createRun } = vi.hoisted(() => ({
   approveConfiguration: vi.fn(),
   createRun: vi.fn(),
@@ -92,5 +94,23 @@ describe('workflow action payloads', () => {
       excludedCandidateIds: ['b'],
       note: 'Reviewed',
     });
+  });
+
+  it('keeps UI-only candidate review params out of the documented candidate list API query', () => {
+    const params = candidateListParams(
+      new URLSearchParams({
+        view: 'sequence',
+        candidate: '00000000-0000-0000-0000-000000000001',
+        track: 'MHCII',
+        sourceStatus: 'SYNTHETIC',
+        category: 'RECOMMENDED',
+        search: 'ACD',
+      }),
+      'MHCI',
+    );
+
+    expect(params.toString()).toBe(
+      'track=MHCI&sort=rank&limit=50&category=RECOMMENDED&sourceStatus=SYNTHETIC&search=ACD',
+    );
   });
 });

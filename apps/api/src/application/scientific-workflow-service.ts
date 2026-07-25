@@ -36,6 +36,7 @@ import {
   preliminaryRankingDataSchema,
   scientificBindingDataSchema,
   scientificCoverageDataSchema,
+  shortlistOptimizationDataSchema,
   syntheticBindingDataSchema,
   syntheticCoverageDataSchema,
   thresholdValidationDataSchema,
@@ -56,6 +57,7 @@ const REQUIRED_MCP_WORKFLOW_TOOLS = [
   'validate_thresholds',
   'apply_constraint_rules',
   'rank_candidates',
+  'optimize_shortlist_coverage',
 ] as const;
 
 interface WorkingObservation {
@@ -102,10 +104,36 @@ interface WorkingCandidate {
 interface PipelineResult {
   candidates: WorkingCandidate[];
   rankings: z.infer<typeof finalRankingDataSchema>['candidates'];
+  shortlistOptimizations: WorkingShortlistOptimization[];
   snapshotHash: string;
   sourceStatuses: SourceStatus[];
   executionMode: ExecutionMode;
   toolResults: Array<McpToolResult<unknown>>;
+}
+
+interface WorkingShortlistOptimization {
+  track: 'MHCI' | 'MHCII';
+  eligibleCandidateIds: string[];
+  selectedCandidateIds: string[];
+  finalCoverage: number;
+  coverageByPopulation: Record<string, number>;
+  algorithmId: string;
+  algorithmVersion: string;
+  steps: Array<{
+    step: number;
+    candidateId: string;
+    marginalCoverageGain: number;
+    cumulativeCoverage: number;
+    reasonCode: string;
+  }>;
+  provenance: ConnectorProvenance & {
+    constructSequence?: string;
+    averageCandidateScore?: number;
+    redundancyPenalty?: number;
+    objectiveScore?: number;
+    confidence?: unknown;
+    manufacturability?: unknown;
+  };
 }
 
 type StoredConfiguration = ReturnType<typeof parseStoredRunConfiguration>['request'];
@@ -413,17 +441,119 @@ export class ScientificWorkflowService implements WorkflowExecutionPort {
       },
       finalRankingDataSchema,
     );
+    const shortlistOptimizations = await this.optimizeShortlists({
+      command,
+      configuration,
+      candidates,
+      finalRanking: finalRanking.data.candidates,
+      snapshotHash,
+      call,
+    });
     const sourceStatuses = candidates.flatMap((candidate) =>
       candidate.observations.map((observation) => observation.provenance.status),
     );
     return {
       candidates,
       rankings: finalRanking.data.candidates,
+      shortlistOptimizations,
       snapshotHash,
       sourceStatuses,
       executionMode: deriveExecutionMode(sourceStatuses),
       toolResults,
     };
+  }
+
+  private async optimizeShortlists(input: {
+    command: { runId: string; requestId: string };
+    configuration: StoredConfiguration;
+    candidates: WorkingCandidate[];
+    finalRanking: z.infer<typeof finalRankingDataSchema>['candidates'];
+    snapshotHash: string;
+    call: <T>(name: string, input: unknown, schema: z.ZodType<T>) => Promise<McpToolResult<T>>;
+  }): Promise<WorkingShortlistOptimization[]> {
+    if (input.configuration.populations.length === 0) return [];
+    const rankingByRef = new Map(input.finalRanking.map((ranking) => [ranking.candidateId, ranking]));
+    const optimizations: WorkingShortlistOptimization[] = [];
+    for (const track of ['MHCI', 'MHCII'] as const) {
+      if (!trackEnabled(input.configuration, track)) continue;
+      const eligible = input.candidates
+        .filter((candidate) => candidate.candidateType === track)
+        .filter((candidate) => {
+          const ranking = rankingByRef.get(candidate.ref);
+          return (
+            ranking !== undefined &&
+            ranking.category !== 'REJECTED' &&
+            candidate.coverage.length > 0
+          );
+        })
+        .sort((left, right) => {
+          const leftRanking = rankingByRef.get(left.ref);
+          const rightRanking = rankingByRef.get(right.ref);
+          return (leftRanking?.trackRank ?? 0) - (rightRanking?.trackRank ?? 0);
+        });
+      if (eligible.length === 0) continue;
+      const result = await input.call(
+        'optimize_shortlist_coverage',
+        {
+          runId: input.command.runId,
+          eligibleCandidateIds: eligible.map((candidate) => candidate.ref),
+          finalRankingSnapshotHash: input.snapshotHash,
+          populationIds: input.configuration.populations,
+          targetCoverage: 0.8,
+          maximumShortlistSize: 8,
+          method: 'deterministic-genetic-construct-optimizer',
+          candidates: eligible.map((candidate) => {
+            const ranking = rankingByRef.get(candidate.ref);
+            if (ranking === undefined) throw new Error(`Ranking missing for ${candidate.ref}.`);
+            return {
+              candidateId: candidate.ref,
+              candidateType: track,
+              peptide: candidate.peptide,
+              start: candidate.start,
+              end: candidate.end,
+              rank: ranking.trackRank,
+              finalScore: ranking.finalScore,
+              agreement: ranking.agreement,
+              completeness: ranking.completeness,
+              category: ranking.category,
+              populationCoverage: Object.fromEntries(
+                candidate.coverage.map((coverage) => [
+                  coverage.populationId,
+                  coverage.projectedCoverage,
+                ]),
+              ),
+            };
+          }),
+          populationWeights: Object.fromEntries(
+            input.configuration.populations.map((populationId) => [populationId, 1]),
+          ),
+          linker: 'GPGPG',
+        },
+        shortlistOptimizationDataSchema,
+      );
+      optimizations.push({
+        track,
+        eligibleCandidateIds: eligible.map((candidate) => candidate.ref),
+        selectedCandidateIds: result.data.selectedCandidateIds,
+        finalCoverage: result.data.finalCoverage,
+        coverageByPopulation: result.data.coverageByPopulation ?? {},
+        algorithmId: result.data.provenance.algorithm ?? result.data.provenance.method,
+        algorithmVersion:
+          result.data.provenance.algorithmVersion ?? result.data.provenance.methodVersion,
+        steps: result.data.steps.map((step, index) => ({
+          step: index + 1,
+          candidateId: step.candidateId,
+          marginalCoverageGain: step.marginalGain,
+          cumulativeCoverage: step.cumulativeCoverage,
+          reasonCode: index === 0 ? 'GA_SEED_COVERAGE_ANCHOR' : 'GA_COVERAGE_REDUNDANCY_TRADEOFF',
+        })),
+        provenance: withDefinedOptimizationMetadata(
+          result.data.provenance,
+          optimizationMetadata(result.data),
+        ),
+      });
+    }
+    return optimizations;
   }
 
   private async acquireCandidates(
@@ -934,6 +1064,75 @@ export class ScientificWorkflowService implements WorkflowExecutionPort {
         }
       }
 
+      for (const optimization of result.shortlistOptimizations) {
+        const selectedCandidateIds = optimization.selectedCandidateIds.flatMap((ref) => {
+          const entity = candidateEntityByRef.get(ref);
+          return entity === undefined ? [] : [entity.id];
+        });
+        const eligibleCandidateIds = optimization.eligibleCandidateIds.flatMap((ref) => {
+          const entity = candidateEntityByRef.get(ref);
+          return entity === undefined ? [] : [entity.id];
+        });
+        const finalCoverageResult = await repositories.populationCoverageResults.create({
+          runId: command.runId,
+          populationId: 'weighted-population-average',
+          classMode: optimization.track === 'MHCI' ? 'CLASS_I' : 'CLASS_II',
+          purpose: 'FINAL_SHORTLIST',
+          candidateIdsJson: json(selectedCandidateIds),
+          projectedCoverage: optimization.finalCoverage,
+          averageHits: selectedCandidateIds.length,
+          provenanceJson: json({
+            ...optimization.provenance,
+            sourceStatus: optimization.provenance.status,
+            method: optimization.provenance.method,
+            coverageByPopulation: optimization.coverageByPopulation,
+            selectedCandidateCount: selectedCandidateIds.length,
+          }),
+          snapshotHash: result.snapshotHash,
+        });
+        for (const [populationId, projectedCoverage] of Object.entries(
+          optimization.coverageByPopulation,
+        )) {
+          await repositories.populationCoverageResults.create({
+            runId: command.runId,
+            populationId,
+            classMode: optimization.track === 'MHCI' ? 'CLASS_I' : 'CLASS_II',
+            purpose: 'SHORTLIST_OPTIMIZATION',
+            candidateIdsJson: json(selectedCandidateIds),
+            projectedCoverage,
+            averageHits: selectedCandidateIds.length,
+            provenanceJson: json({
+              ...optimization.provenance,
+              sourceStatus: optimization.provenance.status,
+              method: optimization.provenance.method,
+              selectedCandidateCount: selectedCandidateIds.length,
+            }),
+            snapshotHash: result.snapshotHash,
+          });
+        }
+        const optimizationEntity = await repositories.shortlistOptimizationResults.create({
+          runId: command.runId,
+          track: optimization.track,
+          eligibleCandidateIdsJson: json(eligibleCandidateIds),
+          finalCoverageResultId: finalCoverageResult.id,
+          algorithmId: optimization.algorithmId,
+          algorithmVersion: optimization.algorithmVersion,
+          snapshotHash: result.snapshotHash,
+        });
+        for (const step of optimization.steps) {
+          const selectedEntity = candidateEntityByRef.get(step.candidateId);
+          if (selectedEntity === undefined) continue;
+          await repositories.shortlistSelectionSteps.create({
+            shortlistOptimizationResultId: optimizationEntity.id,
+            step: step.step,
+            selectedCandidateId: selectedEntity.id,
+            marginalCoverageGain: step.marginalCoverageGain,
+            cumulativeCoverage: step.cumulativeCoverage,
+            reasonCode: step.reasonCode,
+          });
+        }
+      }
+
       await persistGraph({
         repositories,
         runId: command.runId,
@@ -1065,6 +1264,48 @@ function candidateSnapshot(candidate: WorkingCandidate) {
     consensus: candidate.consensus,
     completeness: candidate.completeness,
   };
+}
+
+function withDefinedOptimizationMetadata(
+  provenance: ConnectorProvenance,
+  metadata: {
+    constructSequence?: string;
+    averageCandidateScore?: number;
+    redundancyPenalty?: number;
+    objectiveScore?: number;
+    confidence?: unknown;
+    manufacturability?: unknown;
+  },
+): WorkingShortlistOptimization['provenance'] {
+  const enriched: WorkingShortlistOptimization['provenance'] = { ...provenance };
+  if (metadata.constructSequence !== undefined) enriched.constructSequence = metadata.constructSequence;
+  if (metadata.averageCandidateScore !== undefined)
+    enriched.averageCandidateScore = metadata.averageCandidateScore;
+  if (metadata.redundancyPenalty !== undefined) enriched.redundancyPenalty = metadata.redundancyPenalty;
+  if (metadata.objectiveScore !== undefined) enriched.objectiveScore = metadata.objectiveScore;
+  if (metadata.confidence !== undefined) enriched.confidence = metadata.confidence;
+  if (metadata.manufacturability !== undefined)
+    enriched.manufacturability = metadata.manufacturability;
+  return enriched;
+}
+
+function optimizationMetadata(data: z.infer<typeof shortlistOptimizationDataSchema>): {
+  constructSequence?: string;
+  averageCandidateScore?: number;
+  redundancyPenalty?: number;
+  objectiveScore?: number;
+  confidence?: unknown;
+  manufacturability?: unknown;
+} {
+  const metadata: ReturnType<typeof optimizationMetadata> = {};
+  if (data.constructSequence !== undefined) metadata.constructSequence = data.constructSequence;
+  if (data.averageCandidateScore !== undefined)
+    metadata.averageCandidateScore = data.averageCandidateScore;
+  if (data.redundancyPenalty !== undefined) metadata.redundancyPenalty = data.redundancyPenalty;
+  if (data.objectiveScore !== undefined) metadata.objectiveScore = data.objectiveScore;
+  if (data.confidence !== undefined) metadata.confidence = data.confidence;
+  if (data.manufacturability !== undefined) metadata.manufacturability = data.manufacturability;
+  return metadata;
 }
 
 function trackEnabled(configuration: StoredConfiguration, track: 'MHCI' | 'MHCII' | 'BCELL') {
