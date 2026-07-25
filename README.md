@@ -127,6 +127,51 @@ npm run dev
 
 `npm run dev` starts the web app, Fastify API, and NitroStack MCP server together. Defaults are web `5173`, API `3000`, and MCP `3001`. The API endpoint can be changed with `MCP_SERVER_URL`.
 
+## NitroStack Cloud deployment
+
+ImmunoGraph deploys to NitroStack Cloud as an MCP-first app. The cloud artifact is
+`apps/mcp`; the React workspace and Fastify API remain separately deployable.
+
+Cloud target:
+
+```text
+NitroStack Cloud
+  apps/mcp
+    /mcp          Streamable HTTP MCP endpoint
+    /mcp/health   NitroStack health probe
+    /sse          legacy SDK SSE endpoint, when enabled by NitroStack
+```
+
+Recommended cloud environment:
+
+```env
+NODE_ENV=production
+HOST=0.0.0.0
+PORT=3001
+MCP_TRANSPORT_TYPE=dual
+IEDB_LIVE_ENABLED=true
+MHCFLURRY_ENABLED=false
+DEMO_MODE=true
+```
+
+Build only the MCP app:
+
+```powershell
+npm run mcp:build
+npm run mcp:start
+```
+
+Docker deployment:
+
+```powershell
+docker build -f Dockerfile.mcp -t immunograph-mcp .
+docker run --rm -p 3001:3001 --env-file .env.production.example immunograph-mcp
+```
+
+The initial cloud deployment should keep `MHCFLURRY_ENABLED=false` unless the
+runtime has Python, the MHCflurry CLI, and downloaded models installed. IEDB is
+the primary live cloud connector because it only requires outbound HTTPS.
+
 ## Technology baseline
 
 - Frontend: React, Vite, TypeScript, Tailwind CSS, shadcn/ui

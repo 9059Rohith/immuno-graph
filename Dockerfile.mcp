@@ -1,0 +1,41 @@
+FROM node:20-bookworm-slim AS deps
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.json tsconfig.base.json ./
+COPY apps/mcp/package.json apps/mcp/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/algorithms/package.json packages/algorithms/package.json
+COPY packages/database/package.json packages/database/package.json
+
+RUN npm ci
+
+FROM deps AS build
+
+COPY apps/mcp apps/mcp
+COPY packages packages
+COPY data data
+COPY vitest.config.ts ./
+
+RUN npm run build:types
+
+FROM node:20-bookworm-slim AS runtime
+
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3001
+ENV MCP_TRANSPORT_TYPE=dual
+ENV IEDB_LIVE_ENABLED=true
+ENV MHCFLURRY_ENABLED=false
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/apps/mcp ./apps/mcp
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/data ./data
+COPY package.json package-lock.json ./
+
+EXPOSE 3001
+
+CMD ["npm", "run", "mcp:start"]

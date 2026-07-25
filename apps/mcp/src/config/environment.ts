@@ -1,9 +1,14 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
-const mcpEnvironmentSchema = z.object({
-  MCP_HOST: z.string().default('127.0.0.1'),
+const transportSchema = z.enum(['stdio', 'http', 'dual']);
+
+const rawMcpEnvironmentSchema = z.object({
+  HOST: z.string().optional(),
+  PORT: z.coerce.number().int().min(1).max(65_535).optional(),
+  MCP_HOST: z.string().optional(),
   MCP_PORT: z.coerce.number().int().min(1).max(65_535).default(3001),
+  MCP_TRANSPORT_TYPE: transportSchema.optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   /** Enable real IEDB live binding predictions. Off by default (safe offline mode). */
   IEDB_LIVE_ENABLED: z
@@ -41,8 +46,23 @@ const mcpEnvironmentSchema = z.object({
     .default(10 * 1024 * 1024),
 });
 
-export type McpEnvironment = z.infer<typeof mcpEnvironmentSchema>;
+export type McpEnvironment = z.infer<typeof rawMcpEnvironmentSchema> & {
+  HOST: string;
+  PORT: number;
+  MCP_HOST: string;
+  MCP_TRANSPORT_TYPE: z.infer<typeof transportSchema>;
+};
 
 export function loadMcpEnvironment(): McpEnvironment {
-  return mcpEnvironmentSchema.parse(process.env);
+  const parsed = rawMcpEnvironmentSchema.parse(process.env);
+  const cloudHost = parsed.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1';
+  const host = parsed.HOST ?? parsed.MCP_HOST ?? cloudHost;
+  return {
+    ...parsed,
+    HOST: host,
+    PORT: parsed.PORT ?? parsed.MCP_PORT,
+    MCP_HOST: parsed.MCP_HOST ?? host,
+    MCP_TRANSPORT_TYPE:
+      parsed.MCP_TRANSPORT_TYPE ?? (parsed.NODE_ENV === 'production' ? 'dual' : 'http'),
+  };
 }

@@ -7,8 +7,11 @@ import { loadMcpEnvironment } from './config/environment.js';
 
 async function bootstrap(): Promise<void> {
   const environment = loadMcpEnvironment();
-  process.env.MCP_HOST ??= environment.MCP_HOST;
-  process.env.MCP_PORT ??= String(environment.MCP_PORT);
+  process.env.HOST = environment.HOST;
+  process.env.PORT = String(environment.PORT);
+  process.env.MCP_HOST = environment.MCP_HOST;
+  process.env.MCP_PORT = String(environment.MCP_PORT);
+  process.env.MCP_TRANSPORT_TYPE = environment.MCP_TRANSPORT_TYPE;
 
   const application = await McpApplicationFactory.create(AppModule);
   await application.start();
