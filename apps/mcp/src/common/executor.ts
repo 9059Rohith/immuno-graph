@@ -2,7 +2,7 @@ import { performance } from 'node:perf_hooks';
 
 import { canonicalJsonSha256 } from '@immunograph/algorithms';
 import type { CanonicalJsonValue } from '@immunograph/algorithms';
-import type { ExecutionContext, JsonValue } from '@nitrostack/core';
+import type { ExecutionContext, JsonValue } from '../framework.js';
 import { z } from 'zod';
 
 import { CapabilityUnavailableError } from './capability-port.js';

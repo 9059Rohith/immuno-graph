@@ -14,7 +14,7 @@ Scientific semantics must not be changed through code alone.
 
 ## 2. Development prerequisites
 
-- Node.js version supported by the pinned NitroStack release and root `engines` field.
+- Node.js version supported by the root `engines` field.
 - npm version in the root `engines` field.
 - SQLite runtime supported by Prisma.
 - NitroStudio for interactive MCP testing.

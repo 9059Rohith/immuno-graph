@@ -5,6 +5,8 @@ import { AppShell } from '@/components/app-shell';
 import { LoadingState } from '@/components/page-state';
 import { Button } from '@/components/ui/button';
 import { DashboardPage } from '@/features/projects/dashboard-page';
+import { AuthPage, Protected } from '@/features/auth';
+import { DockingPage, StructuresPage } from '@/features/structural-pages';
 const pages = () => import('@/features/workspace-pages');
 const lazyPage = <K extends keyof Awaited<ReturnType<typeof pages>>>(name: K) =>
   lazy(async () => ({ default: (await pages())[name] as ComponentType }));
@@ -21,9 +23,10 @@ const WorkflowPage = lazyPage('WorkflowPage');
 
 export function App() {
   return (
-    <AppShell>
-      <Suspense fallback={<LoadingState label="Loading page" />}>
-        <Routes>
+    <Routes>
+      <Route path="/login" element={<AuthPage mode="login" />} />
+      <Route path="/signup" element={<AuthPage mode="signup" />} />
+      <Route path="*" element={<Protected><AppShell><Suspense fallback={<LoadingState label="Loading page" />}><Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/projects/new" element={<CreateProjectPage />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />
@@ -35,6 +38,8 @@ export function App() {
           <Route path="/runs/:runId/reports" element={<ReportsPage />} />
           <Route path="/system/diagnostics" element={<DiagnosticsPage />} />
           <Route path="/system/about" element={<AboutPage />} />
+          <Route path="/structures" element={<StructuresPage />} />
+          <Route path="/docking" element={<DockingPage />} />
           <Route
             path="*"
             element={
@@ -46,8 +51,7 @@ export function App() {
               </section>
             }
           />
-        </Routes>
-      </Suspense>
-    </AppShell>
+        </Routes></Suspense></AppShell></Protected>} />
+    </Routes>
   );
 }

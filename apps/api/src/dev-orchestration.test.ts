@@ -21,7 +21,7 @@ describe('local dev orchestration scripts', () => {
     expect(packageJson.scripts['dev:stop']).toBe('node scripts/dev-stop.mjs');
   });
 
-  it('keeps MCP independently startable for NitroStack transport checks', () => {
+  it('keeps the MCP service independently startable for transport checks', () => {
     expect(packageJson.scripts['mcp:dev']).toBe('npm run dev --workspace @immunograph/mcp');
     expect(packageJson.scripts['mcp:start']).toBe('npm run start --workspace @immunograph/mcp');
     expect(mcpPackageJson.scripts.dev).toBe('node ../../scripts/dev-mcp.mjs');

@@ -1,13 +1,9 @@
-import 'reflect-metadata';
-
-import { buildTools, McpApplicationFactory } from '@nitrostack/core';
-import type { ExecutionContext, JsonValue, Logger } from '@nitrostack/core';
+import { buildTools, type ExecutionContext, type JsonValue, type Logger } from './framework.js';
 import { loadFixtureRegistry } from '@immunograph/database';
 import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
 
 import type { CapabilityPort } from './common/capability-port.js';
-import { AppModule } from './app.module.js';
 import { PredictionController } from './prediction/prediction.controller.js';
 import { TOOL_GROUPS } from './tool-catalog.js';
 
@@ -75,10 +71,8 @@ const toolByName = (name: string) => {
 };
 
 describe('MCP tool catalog', () => {
-  it('registers every group in the single NitroStack application module', async () => {
-    const application = await McpApplicationFactory.create(AppModule);
-    const registered = (application as unknown as { tools: unknown[] }).tools;
-    expect(registered).toHaveLength(EXPECTED_TOOL_NAMES.length);
+  it('registers every tool in the independent MCP catalog', () => {
+    expect(tools).toHaveLength(EXPECTED_TOOL_NAMES.length);
   });
 
   it('discovers one server catalog with four groups and all documented tools', async () => {

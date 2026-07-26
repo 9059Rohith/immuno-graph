@@ -15,9 +15,18 @@ services:
       IEDB_LIVE_ENABLED: ${IEDB_LIVE_ENABLED:-false}
       MHCFLURRY_ENABLED: ${MHCFLURRY_ENABLED:-false}
       DEMO_MODE: ${DEMO_MODE:-true}
+      DOCKING_PROVIDER_URL: ${DOCKING_PROVIDER_URL:-}
+      DOCKING_PROVIDER_TOKEN: ${DOCKING_PROVIDER_TOKEN:-}
+      DOCKING_ENGINE_NAME: ${DOCKING_ENGINE_NAME:-external-provider}
+      DOCKING_ENGINE_VERSION: ${DOCKING_ENGINE_VERSION:-}
     expose:
       - '3001'
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   api:
     build:
@@ -35,10 +44,16 @@ services:
     volumes:
       - immunograph-data:/data
     depends_on:
-      - mcp
+      mcp:
+        condition: service_healthy
     expose:
       - '3000'
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   web:
     build:

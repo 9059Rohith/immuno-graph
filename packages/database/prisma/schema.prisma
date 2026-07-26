@@ -7,6 +7,65 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  displayName  String
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model StructureModel {
+  id             String   @id @default(uuid())
+  name           String
+  source         String
+  sourceReference String?
+  format         String
+  artifactPath   String
+  sha256         String
+  sequenceHash   String?
+  provider       String
+  providerVersion String?
+  status         String
+  createdAt      DateTime @default(now())
+  dockingAsReceptor DockingJob[] @relation("DockingReceptor")
+  dockingAsLigand   DockingJob[] @relation("DockingLigand")
+}
+
+model DockingJob {
+  id                String   @id @default(uuid())
+  receptorId        String
+  ligandId          String
+  engine            String
+  engineVersion     String?
+  status            String
+  parametersJson    String
+  score             Float?
+  poseArtifactPath  String?
+  errorMessage      String?
+  createdAt         DateTime @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+  receptor          StructureModel @relation("DockingReceptor", fields: [receptorId], references: [id], onDelete: Restrict)
+  ligand            StructureModel @relation("DockingLigand", fields: [ligandId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+}
+
 model Project {
   id          String   @id @default(uuid())
   name        String

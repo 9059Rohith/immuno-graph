@@ -8,6 +8,7 @@ import { TooltipProvider } from './components/ui/tooltip';
 import { Toaster } from './components/ui/sonner';
 import { createAppQueryClient } from './lib/query-client';
 import './styles.css';
+import { AuthProvider } from './features/auth';
 
 const rootElement = document.getElementById('root');
 
@@ -21,10 +22,10 @@ createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <TooltipProvider>
+        <AuthProvider><TooltipProvider>
           <App />
           <Toaster />
-        </TooltipProvider>
+        </TooltipProvider></AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

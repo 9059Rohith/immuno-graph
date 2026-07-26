@@ -1,8 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { explainCandidate } from '@immunograph/algorithms';
-import { ControllerDecorator, ToolDecorator } from '@nitrostack/core';
-import type { ExecutionContext } from '@nitrostack/core';
+import { ControllerDecorator, ToolDecorator, type ExecutionContext } from '../framework.js';
 import type { z } from 'zod';
 
 import type { CapabilityPort } from '../common/capability-port.js';
@@ -76,7 +75,7 @@ export class ReportController {
           provenanceSummary: {
             executionMode: snapshot.executionMode,
             scientificUse: snapshot.scientificUse,
-            generatedBy: 'NitroStack MCP generate_report',
+            generatedBy: 'ImmunoGraph MCP generate_report',
           },
           runQuality: snapshot.runQuality,
         };

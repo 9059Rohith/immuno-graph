@@ -183,7 +183,7 @@ describe('scientific workflow prediction cache', () => {
       database.transactionManager,
       {
         assertAvailable: async () => {
-          throw new DependencyUnavailableError('NitroStack MCP server');
+          throw new DependencyUnavailableError('ImmunoGraph MCP server');
         },
         call: async () => {
           throw new Error('remote MCP call should be skipped after failed preflight');

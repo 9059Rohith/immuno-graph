@@ -10,8 +10,7 @@ import type {
   DuplicateCandidate,
   OverlapCandidate,
 } from '@immunograph/algorithms';
-import { ToolDecorator as Tool } from '@nitrostack/core';
-import type { ExecutionContext } from '@nitrostack/core';
+import { Tool, type ExecutionContext } from '../framework.js';
 import { z } from 'zod';
 
 import {

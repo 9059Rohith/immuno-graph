@@ -9,6 +9,9 @@ import {
   Network,
   Settings,
   Workflow,
+  Cuboid,
+  Box,
+  LogOut,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -32,10 +35,13 @@ import {
 } from '@/components/ui/sidebar';
 import { apiRequest } from '@/lib/api-client';
 import { useProject, useRun } from '@/features/data-hooks';
+import { useAuth } from '@/features/auth';
 
 const workspace = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard },
   { label: 'Projects', to: '/', icon: FolderKanban },
+  { label: '3D Structures', to: '/structures', icon: Cuboid },
+  { label: 'Docking Lab', to: '/docking', icon: Box },
 ];
 const system = [
   { label: 'Diagnostics', to: '/system/diagnostics', icon: Gauge },
@@ -43,6 +49,7 @@ const system = [
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const auth = useAuth();
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
@@ -64,12 +71,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </SidebarContent>
         <SidebarFooter>
           <ApiConnectionStatus />
+          <button className="mt-2 flex items-center gap-2 rounded-lg px-2 py-2 text-xs hover:bg-sidebar-accent" onClick={() => void auth.logout()}><LogOut className="size-4" /> Sign out</button>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-14 items-center border-b bg-card px-4 md:px-6">
+        <header className="sticky top-0 z-10 flex h-14 items-center border-b bg-card/90 px-4 backdrop-blur-md md:px-6">
           <SidebarTrigger aria-label="Toggle navigation" />
-          <span className="ml-3 text-sm text-muted-foreground">Research workspace</span>
+          <span className="ml-3 text-sm text-muted-foreground">Research workspace</span><span className="ml-auto hidden text-sm font-medium sm:inline">{auth.user?.displayName}</span>
         </header>
         <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-5 px-4 py-5 md:px-7 md:py-6">
           {children}
@@ -125,7 +133,7 @@ function ApiConnectionStatus() {
   );
 }
 
-type NavigationItem = (typeof workspace)[number];
+type NavigationItem = { label: string; to: string; icon: typeof LayoutDashboard };
 function NavGroup({ label, items }: { label: string; items: NavigationItem[] }) {
   return (
     <SidebarGroup>

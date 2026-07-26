@@ -1,23 +1,13 @@
-import 'reflect-metadata';
-
-import { McpApplicationFactory } from '@nitrostack/core';
-
-import { AppModule } from './app.module.js';
 import { loadMcpEnvironment } from './config/environment.js';
+import { startMcpHttpServer } from './framework.js';
+import { TOOL_GROUPS } from './tool-catalog.js';
 
 async function bootstrap(): Promise<void> {
   const environment = loadMcpEnvironment();
-  process.env.HOST = environment.HOST;
-  process.env.PORT = String(environment.PORT);
-  process.env.MCP_HOST = environment.MCP_HOST;
-  process.env.MCP_PORT = String(environment.MCP_PORT);
-  process.env.MCP_TRANSPORT_TYPE = environment.MCP_TRANSPORT_TYPE;
-
-  const application = await McpApplicationFactory.create(AppModule);
-  await application.start();
+  await startMcpHttpServer(TOOL_GROUPS.map((group) => group.controller), environment.HOST, environment.PORT);
 }
 
 void bootstrap().catch((error: unknown) => {
-  process.stderr.write(`MCP scaffold failed to start: ${String(error)}\n`);
+  process.stderr.write(`MCP server failed to start: ${String(error)}\n`);
   process.exitCode = 1;
 });

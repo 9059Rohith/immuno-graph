@@ -7,8 +7,7 @@ import {
   validateFasta,
 } from '@immunograph/algorithms';
 import { loadReferenceBundle } from '@immunograph/database';
-import { ControllerDecorator, ToolDecorator } from '@nitrostack/core';
-import type { ExecutionContext } from '@nitrostack/core';
+import { ControllerDecorator, ToolDecorator, type ExecutionContext } from '../framework.js';
 import type { z } from 'zod';
 
 import type { CapabilityPort } from '../common/capability-port.js';
@@ -214,6 +213,3 @@ export class PredictionController {
     });
   }
 }
-
-// Keep NitroStack's default module composition free of constructor dependencies.
-Reflect.defineMetadata('design:paramtypes', [], PredictionController);

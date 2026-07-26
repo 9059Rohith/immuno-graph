@@ -83,7 +83,7 @@ export class HttpMcpToolGateway implements McpToolGateway {
       if (error instanceof ZodError) {
         throw error;
       }
-      throw new DependencyUnavailableError('NitroStack MCP server', { cause: error });
+      throw new DependencyUnavailableError('ImmunoGraph MCP server', { cause: error });
     } finally {
       await client.close().catch(() => undefined);
     }

@@ -14,8 +14,7 @@ import {
   loadReferenceBundle,
   rankingProfileSchema,
 } from '@immunograph/database';
-import { ControllerDecorator, ToolDecorator } from '@nitrostack/core';
-import type { ExecutionContext } from '@nitrostack/core';
+import { ControllerDecorator, ToolDecorator, type ExecutionContext } from '../framework.js';
 import type { z } from 'zod';
 
 import type { CapabilityPort } from '../common/capability-port.js';

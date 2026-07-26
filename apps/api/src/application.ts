@@ -6,6 +6,9 @@ import type { ApiEnvironment } from './config/environment.js';
 import { ApiError } from './http.js';
 import { registerApiRoutes } from './routes.js';
 import type { RestApiServices } from './services.js';
+import type { DatabaseClient } from '@immunograph/database';
+import { registerAuthRoutes } from './auth.js';
+import { registerStructuralBiologyRoutes } from './structural-biology.js';
 
 interface ServiceErrorShape extends Error {
   code?: unknown;
@@ -17,6 +20,7 @@ interface ServiceErrorShape extends Error {
 export function createApiApplication(
   environment: ApiEnvironment,
   services: RestApiServices,
+  database?: DatabaseClient,
 ): FastifyInstance {
   const application = Fastify({
     bodyLimit: 1_100_000,
@@ -88,6 +92,15 @@ export function createApiApplication(
   );
 
   application.get('/health/live', async () => ({ status: 'ok' }));
+  application.get('/health/ready', async () => {
+    if (database !== undefined) await database.$queryRaw`SELECT 1`;
+    return { status: 'ok', service: 'immunograph-api' };
+  });
+
+  if (database !== undefined) {
+    registerAuthRoutes(application, database, environment.NODE_ENV === 'production');
+    registerStructuralBiologyRoutes(application, database, environment.ARTIFACT_ROOT);
+  }
 
   void registerApiRoutes(application, services);
 
