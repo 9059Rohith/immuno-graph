@@ -20,6 +20,7 @@ import {
   runDetailSchema,
   runtimeSettingsSchema,
   sequenceMapSchema,
+  trustSummarySchema,
 } from '@immunograph/shared';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -294,6 +295,11 @@ describe('real REST application services with SQLite', () => {
       url: `/api/v1/runs/${workspace.runId}`,
     });
     const run = runDetailSchema.parse(data(runResponse));
+    const trustResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/runs/${workspace.runId}/trust-summary`,
+    });
+    const trust = trustSummarySchema.parse(data(trustResponse));
 
     expect(project).toMatchObject({
       name: 'ImmunoGraph Judge Demo',
@@ -312,6 +318,16 @@ describe('real REST application services with SQLite', () => {
         fallbackPolicy: 'FIXTURE_ONLY',
       },
     });
+    expect(trust).toMatchObject({
+      run: { id: workspace.runId, status: 'DRAFT' },
+      disclaimer: 'Demonstration only — not scientific output.',
+    });
+    expect(trust.checks).toContainEqual(
+      expect.objectContaining({ id: 'fixture_manifest_valid', status: 'PASS' }),
+    );
+    expect(trust.checks).toContainEqual(
+      expect.objectContaining({ id: 'artifact_hashes', status: 'UNAVAILABLE' }),
+    );
   });
 
   it('exposes safe diagnostics and fails closed when no exact fixture is available', async () => {

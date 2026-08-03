@@ -14,4 +14,5 @@ export * from './ranking.js';
 export * from './scoring.js';
 export * from './synthetic-coverage.js';
 export * from './synthetic-prediction.js';
+export * from './trust-evaluation.js';
 export * from './types.js';

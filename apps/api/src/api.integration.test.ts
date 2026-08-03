@@ -155,6 +155,7 @@ describe('REST API', () => {
       },
       { method: 'POST', url: `/api/v1/projects/${projectId}/runs`, payload: runBody, status: 201 },
       { method: 'GET', url: `/api/v1/runs/${runId}`, status: 200 },
+      { method: 'GET', url: `/api/v1/runs/${runId}/trust-summary`, status: 200 },
       {
         method: 'POST',
         url: `/api/v1/runs/${runId}/approvals/configuration`,

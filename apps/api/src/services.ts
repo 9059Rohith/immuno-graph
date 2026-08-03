@@ -8,6 +8,7 @@ export type ApiOperation =
   | 'projects.delete'
   | 'runs.create'
   | 'runs.get'
+  | 'runs.trustSummary'
   | 'runs.approveConfiguration'
   | 'runs.start'
   | 'runs.cancel'

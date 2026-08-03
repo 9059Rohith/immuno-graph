@@ -73,6 +73,13 @@ const routes: JsonRoute[] = [
     params: contracts.runParams,
   },
   {
+    method: 'GET',
+    url: '/runs/:runId/trust-summary',
+    operation: 'runs.trustSummary',
+    statusCode: 200,
+    params: contracts.runParams,
+  },
+  {
     method: 'POST',
     url: '/runs/:runId/approvals/configuration',
     operation: 'runs.approveConfiguration',

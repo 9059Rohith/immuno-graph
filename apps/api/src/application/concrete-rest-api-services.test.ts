@@ -16,6 +16,7 @@ const operations: ReadonlyArray<[ApiOperation, keyof FocusedApplicationServices,
   ['projects.delete', 'projects', 'delete'],
   ['runs.create', 'runs', 'create'],
   ['runs.get', 'runs', 'get'],
+  ['runs.trustSummary', 'trust', 'get'],
   ['runs.approveConfiguration', 'runs', 'approveConfiguration'],
   ['runs.start', 'runs', 'start'],
   ['runs.cancel', 'runs', 'cancel'],
@@ -61,6 +62,7 @@ function fixture() {
       'retryStage',
       'approveShortlist',
     ]),
+    trust: group('trust', ['get']),
     events: {
       ...group('events', ['history']),
       stream: vi.fn(() =>

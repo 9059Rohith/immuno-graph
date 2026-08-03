@@ -27,6 +27,7 @@ import { EvidenceService } from './services/evidence-service.js';
 import { ProjectService } from './services/project-service.js';
 import { ReportService } from './services/report-service.js';
 import { RunService } from './services/run-service.js';
+import { TrustService } from './services/trust-service.js';
 import { ScientificWorkflowService } from './scientific-workflow-service.js';
 
 export interface CapabilityOverrides {
@@ -65,6 +66,7 @@ export function createServices(
     demo: new DemoService(projects, runs),
     projects,
     runs,
+    trust: new TrustService(repositories),
     events,
     candidates: new CandidateService(repositories),
     evidence: new EvidenceService(repositories),

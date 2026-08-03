@@ -7,11 +7,13 @@ import type { EvidenceService } from './services/evidence-service.js';
 import type { ProjectService } from './services/project-service.js';
 import type { ReportService } from './services/report-service.js';
 import type { RunService } from './services/run-service.js';
+import type { TrustService } from './services/trust-service.js';
 
 export interface FocusedApplicationServices {
   demo: DemoService;
   projects: ProjectService;
   runs: RunService;
+  trust: TrustService;
   events: EventService;
   candidates: CandidateService;
   evidence: EvidenceService;
@@ -44,6 +46,8 @@ export class ConcreteRestApiServices implements RestApiServices {
         return this.services.runs.create(input as Parameters<RunService['create']>[0]);
       case 'runs.get':
         return this.services.runs.get(input.runId as string);
+      case 'runs.trustSummary':
+        return this.services.trust.get(input.runId as string);
       case 'runs.approveConfiguration':
         return this.services.runs.approveConfiguration(
           input as Parameters<RunService['approveConfiguration']>[0],
