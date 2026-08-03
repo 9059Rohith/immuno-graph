@@ -64,9 +64,7 @@ describe('application shell', () => {
     );
     renderApp(<App />, [`/projects/${projectId}`]);
 
-    expect(
-      await screen.findByText('Project workspace', {}, { timeout: 5_000 }),
-    ).toBeVisible();
+    expect(await screen.findByText('Project workspace', {}, { timeout: 5_000 })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute(
       'href',
       `/projects/${projectId}`,

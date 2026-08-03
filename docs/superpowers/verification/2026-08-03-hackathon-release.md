@@ -4,7 +4,7 @@ Status: local release gate passed. Hosted deployment remains an owner action bec
 
 ## Release identity
 
-- Verified application commit: `6c4c62a67d7db74ced2751d042f19e28030df02b`
+- Verified application commit: `91b71d96b9271d0ea0582962625007944288edbe`
 - Deployment URLs: pending owner deployment
 - Production contract: Node.js `>=20.19.0 <21`, npm `>=10 <11`
 - Verification host: Node.js 24.11.1 / npm 11.6.2; the engine mismatch was explicitly bypassed only for local dependency installation
@@ -16,13 +16,15 @@ Status: local release gate passed. Hosted deployment remains an owner action bec
 | `npm run format:check` | Passed after formatting the release changes |
 | `npm run lint` | Passed with zero warnings |
 | `npm run typecheck` | Passed |
-| `npm test` | 79 files passed; 333 tests passed |
-| `npm run test:coverage` | 74.43% statements, 58.62% branches, 69.05% functions, 74.48% lines |
+| `npm test` | 81 files passed; 338 tests passed |
+| `npm run test:coverage` | 74.38% statements, 58.69% branches, 69.11% functions, 74.45% lines |
 | `npm run build` | Passed; Vite transformed 2,689 modules and produced the production web bundle |
 | `npm run docs:check` | Documentation links and npm scripts valid |
+| `npm run deployment:check` | API health-probe dependency and deterministic MCP image contracts valid |
 | `npm run test:e2e` | 11/11 passed in 1.2 minutes |
+| `npm run test:e2e -- --project=judge-chromium` | 2/2 passed after deployment hardening |
 | `docker compose config --quiet` | Passed |
-| Vercel/Render config parsing and formatting | Passed |
+| Vercel JSON parsing and Vercel/Render/Compose formatting | Passed |
 
 ## Browser and visual evidence
 
@@ -47,7 +49,9 @@ The MCP SDK was upgraded to 1.30.0 and `@hono/node-server` was pinned to 2.0.12,
 ## Container and hosted smoke
 
 - Compose configuration is valid.
-- Docker images could not be built locally because the Docker Desktop Linux engine was not running (`dockerDesktopLinuxEngine` pipe absent).
+- The exact production MCP and API entry points were started against fresh storage. MCP `/health` and API `/health/ready` returned HTTP 200, exact-origin CORS was present, migrations and seed completed, and `POST /api/v1/demo/start` created an isolated expiring workspace.
+- A new CI `container-smoke` job builds both Docker images, starts them on an isolated network, and requires both health endpoints to pass before Render's `checksPass` deployment trigger can release the commit.
+- Docker images could not be built on this workstation because the Docker Desktop Linux engine was not running (`dockerDesktopLinuxEngine` pipe absent); the CI container job is committed but cannot be claimed as executed until the revision is pushed.
 - Hosted smoke testing is pending the owner's Render and Vercel deployment URLs. No hosted success is claimed.
 
 ## Known limitations
