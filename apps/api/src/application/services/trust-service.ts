@@ -67,8 +67,9 @@ export class TrustService {
       shortlistApproved,
       runFinished: analysisFinished,
       artifactHashes: artifacts.map(({ sha256 }) => sha256),
-      abstentionCount: constraints.filter(({ outcome }) => outcome === 'FAIL' || outcome === 'REVIEW')
-        .length,
+      abstentionCount: constraints.filter(
+        ({ outcome }) => outcome === 'FAIL' || outcome === 'REVIEW',
+      ).length,
     });
 
     return trustSummarySchema.parse({

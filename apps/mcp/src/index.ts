@@ -4,7 +4,11 @@ import { TOOL_GROUPS } from './tool-catalog.js';
 
 async function bootstrap(): Promise<void> {
   const environment = loadMcpEnvironment();
-  await startMcpHttpServer(TOOL_GROUPS.map((group) => group.controller), environment.HOST, environment.PORT);
+  await startMcpHttpServer(
+    TOOL_GROUPS.map((group) => group.controller),
+    environment.HOST,
+    environment.PORT,
+  );
 }
 
 void bootstrap().catch((error: unknown) => {

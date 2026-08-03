@@ -16,8 +16,7 @@ export default defineConfig({
     ? undefined
     : [
         {
-          command:
-            'npm run db:migrate && npm run dev --workspace @immunograph/api',
+          command: 'npm run db:migrate && npm run dev --workspace @immunograph/api',
           url: 'http://127.0.0.1:3100/health/live',
           reuseExistingServer: !process.env.CI,
           timeout: 120_000,

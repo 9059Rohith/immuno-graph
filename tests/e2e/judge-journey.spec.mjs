@@ -20,9 +20,12 @@ test('judge journey completes the credential-free evidence and approval loop', a
   await page.getByRole('button', { name: /launch judge demo/i }).click();
 
   await expect(page.getByRole('navigation', { name: 'Judge workflow' })).toBeVisible();
-  await page.getByRole('navigation', { name: 'Judge workflow' }).getByRole('link', {
-    name: /configure/i,
-  }).click();
+  await page
+    .getByRole('navigation', { name: 'Judge workflow' })
+    .getByRole('link', {
+      name: /configure/i,
+    })
+    .click();
   await expect(page.getByRole('heading', { name: 'Project Settings' })).toBeVisible();
   await expect(page.getByText(/curated judge mode configuration/i)).toBeVisible();
   await page.getByRole('button', { name: /approve configuration and queue/i }).click();
@@ -39,9 +42,11 @@ test('judge journey completes the credential-free evidence and approval loop', a
   await expect(candidate).toBeEnabled();
   await candidate.check();
   await page.getByRole('button', { name: 'Shortlist approval' }).click();
-  await page.getByRole('checkbox', {
-    name: 'Acknowledge computational-only shortlist status',
-  }).check();
+  await page
+    .getByRole('checkbox', {
+      name: 'Acknowledge computational-only shortlist status',
+    })
+    .check();
   await page.getByRole('button', { name: 'Approve shortlist' }).click();
   await expect(page.getByText('Shortlist already approved', { exact: true })).toBeVisible();
 

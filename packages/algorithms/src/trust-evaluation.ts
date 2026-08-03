@@ -69,8 +69,7 @@ export function evaluateTrust(input: TrustEvaluationInput): TrustCheck[] {
   const constraints: TrustCheck = {
     id: 'constraints_enforced',
     label: 'Biological constraints enforced',
-    status:
-      input.constraintOutcomeCount > 0 ? 'PASS' : input.runFinished ? 'FAIL' : 'UNAVAILABLE',
+    status: input.constraintOutcomeCount > 0 ? 'PASS' : input.runFinished ? 'FAIL' : 'UNAVAILABLE',
     detail:
       input.constraintOutcomeCount > 0
         ? `${input.constraintOutcomeCount} immutable rule outcomes were recorded before ranking.`

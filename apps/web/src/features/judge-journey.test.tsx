@@ -83,8 +83,9 @@ describe('deriveJudgeSteps', () => {
   });
 
   it('moves the current milestone with server-recorded run state', () => {
-    expect(deriveJudgeSteps(project, run('RUNNING')).find(({ status }) => status === 'current')?.id)
-      .toBe('analysis');
+    expect(
+      deriveJudgeSteps(project, run('RUNNING')).find(({ status }) => status === 'current')?.id,
+    ).toBe('analysis');
     expect(
       deriveJudgeSteps(project, run('AWAITING_SHORTLIST_APPROVAL')).find(
         ({ status }) => status === 'current',

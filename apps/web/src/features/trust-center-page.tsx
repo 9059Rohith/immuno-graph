@@ -118,7 +118,9 @@ export function TrustCenterPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <p className="mb-1 text-xs font-medium text-muted-foreground">Configuration SHA-256</p>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                Configuration SHA-256
+              </p>
               <Hash>{summary.run.configurationHash}</Hash>
             </div>
             {summary.fixtureManifest ? (
@@ -141,7 +143,9 @@ export function TrustCenterPage() {
                 </p>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">Fixture manifest evidence unavailable.</p>
+              <p className="text-sm text-muted-foreground">
+                Fixture manifest evidence unavailable.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -177,7 +181,9 @@ export function TrustCenterPage() {
       <Card>
         <CardHeader>
           <CardTitle>Workflow hash chain</CardTitle>
-          <CardDescription>Recorded stage inputs and outputs, including retry attempts.</CardDescription>
+          <CardDescription>
+            Recorded stage inputs and outputs, including retry attempts.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {summary.stages.length === 0 ? (
@@ -198,10 +204,13 @@ export function TrustCenterPage() {
                 {summary.stages.map((stage) => (
                   <TableRow key={`${stage.stageKey}-${stage.attempt}`}>
                     <TableCell className="font-medium">
-                      {stage.stageKey} <span className="text-muted-foreground">#{stage.attempt}</span>
+                      {stage.stageKey}{' '}
+                      <span className="text-muted-foreground">#{stage.attempt}</span>
                     </TableCell>
                     <TableCell>{stage.status}</TableCell>
-                    <TableCell><Hash>{stage.inputHash}</Hash></TableCell>
+                    <TableCell>
+                      <Hash>{stage.inputHash}</Hash>
+                    </TableCell>
                     <TableCell>
                       {stage.outputHash ? <Hash>{stage.outputHash}</Hash> : 'Unavailable'}
                     </TableCell>
@@ -242,7 +251,9 @@ export function TrustCenterPage() {
         <Card>
           <CardHeader>
             <CardTitle>Generated artifact hashes</CardTitle>
-            <CardDescription>Downloadable outputs are content-addressed with SHA-256.</CardDescription>
+            <CardDescription>
+              Downloadable outputs are content-addressed with SHA-256.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {summary.artifacts.length === 0 ? (

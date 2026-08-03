@@ -7,7 +7,8 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
 import type { z } from 'zod';
 
-export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export interface Logger {
   debug(message: string, meta?: Record<string, JsonValue>): void;
   info(message: string, meta?: Record<string, JsonValue>): void;
@@ -38,11 +39,13 @@ export const McpApp = (options: unknown): ClassDecorator => {
   void options;
   return () => undefined;
 };
-export const ToolDecorator = (options: ToolOptions): MethodDecorator => (target, key) => {
-  const entries = toolMetadata.get(target) ?? new Map<string | symbol, ToolOptions>();
-  entries.set(key, options);
-  toolMetadata.set(target, entries);
-};
+export const ToolDecorator =
+  (options: ToolOptions): MethodDecorator =>
+  (target, key) => {
+    const entries = toolMetadata.get(target) ?? new Map<string | symbol, ToolOptions>();
+    entries.set(key, options);
+    toolMetadata.set(target, entries);
+  };
 export const Tool = ToolDecorator;
 
 const logger: Logger = {
@@ -56,7 +59,12 @@ export function buildTools(controller: object) {
   const entries = toolMetadata.get(Object.getPrototypeOf(controller)) ?? new Map();
   return [...entries].map(([key, options]) => {
     const execute = (input: unknown, context: ExecutionContext) => {
-      const handler = (controller as Record<string | symbol, ((value: unknown, ctx: ExecutionContext) => unknown) | undefined>)[key];
+      const handler = (
+        controller as Record<
+          string | symbol,
+          ((value: unknown, ctx: ExecutionContext) => unknown) | undefined
+        >
+      )[key];
       if (handler === undefined) throw new Error(`Missing handler for ${options.name}`);
       return handler.call(controller, input, context);
     };
@@ -65,12 +73,21 @@ export function buildTools(controller: object) {
       options,
       execute,
       invoke: execute,
-      toMcpTool: async () => ({ name: options.name, description: options.description, inputSchema: { type: 'object' }, outputSchema: undefined }),
+      toMcpTool: async () => ({
+        name: options.name,
+        description: options.description,
+        inputSchema: { type: 'object' },
+        outputSchema: undefined,
+      }),
     };
   });
 }
 
-export async function startMcpHttpServer(controllers: readonly object[], host: string, port: number): Promise<void> {
+export async function startMcpHttpServer(
+  controllers: readonly object[],
+  host: string,
+  port: number,
+): Promise<void> {
   const app: any = createMcpExpressApp({ host });
   app.post('/mcp', async (request: any, response: any) => {
     const server = new McpServer({ name: 'immunograph-mcp', version: '0.1.0' });
@@ -81,7 +98,10 @@ export async function startMcpHttpServer(controllers: readonly object[], host: s
         if (tool.options.annotations !== undefined) config.annotations = tool.options.annotations;
         (server.registerTool as any)(tool.options.name, config, async (input: unknown) => {
           const result = await tool.invoke(input, { requestId: randomUUID(), logger });
-          return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], structuredContent: result as Record<string, unknown> };
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(result) }],
+            structuredContent: result as Record<string, unknown>,
+          };
         });
       }
     }
@@ -91,13 +111,20 @@ export async function startMcpHttpServer(controllers: readonly object[], host: s
       await transport.handleRequest(request, response, request.body);
     } catch (error) {
       logger.error('mcp.request.failure', { error: String(error) });
-      if (!response.headersSent) response.status(500).json({ jsonrpc: '2.0', error: { code: -32603, message: 'Internal server error' }, id: null });
+      if (!response.headersSent)
+        response.status(500).json({
+          jsonrpc: '2.0',
+          error: { code: -32603, message: 'Internal server error' },
+          id: null,
+        });
     } finally {
       await transport.close();
       await server.close();
     }
   });
-  app.get('/health', (_request: any, response: any) => response.json({ status: 'ok', service: 'immunograph-mcp' }));
+  app.get('/health', (_request: any, response: any) =>
+    response.json({ status: 'ok', service: 'immunograph-mcp' }),
+  );
   await new Promise<void>((resolve, reject) => {
     const listener = app.listen(port, host, resolve);
     listener.on('error', reject);

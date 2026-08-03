@@ -125,9 +125,9 @@ const DEFAULT_LINKER = 'GPGPG';
 export function applyFrozenConsensusRankingModel(
   input: FrozenConsensusRankingInput,
 ): FrozenConsensusRankingResult {
-  const contributions = (Object.keys(FROZEN_RANKER_WEIGHTS) as Array<
-    keyof FrozenConsensusRankingInput
-  >).map((feature) => {
+  const contributions = (
+    Object.keys(FROZEN_RANKER_WEIGHTS) as Array<keyof FrozenConsensusRankingInput>
+  ).map((feature) => {
     const value = input[feature];
     if (feature === 'redundancyPenalty') assertUnitInterval(value, feature);
     else assertUnitInterval(value, feature);
@@ -220,7 +220,9 @@ export function optimizeMultiEpitopeConstruct(
       const left = survivors[Math.floor(rng() * survivors.length)]?.genome ?? survivors[0]!.genome;
       const right =
         survivors[Math.floor(rng() * survivors.length)]?.genome ?? survivors.at(-1)!.genome;
-      next.push(mutateGenome(crossover(left, right, rng), selectable.length, maximumShortlistSize, rng));
+      next.push(
+        mutateGenome(crossover(left, right, rng), selectable.length, maximumShortlistSize, rng),
+      );
     }
     population = uniqueGenomes(next);
   }
@@ -263,7 +265,8 @@ function validateOptimizationInput(input: ConstructOptimizationInput): void {
       throw new RangeError('maximumShortlistSize must be a non-negative integer');
     }
   }
-  if (input.targetCoverage !== undefined) assertUnitInterval(input.targetCoverage, 'targetCoverage');
+  if (input.targetCoverage !== undefined)
+    assertUnitInterval(input.targetCoverage, 'targetCoverage');
   if (input.populationSize !== undefined && input.populationSize <= 0) {
     throw new RangeError('populationSize must be positive');
   }
@@ -274,14 +277,16 @@ function validateOptimizationInput(input: ConstructOptimizationInput): void {
     assertUnitInterval(candidate.finalScore, 'candidate finalScore');
     assertUnitInterval(candidate.agreement, 'candidate agreement');
     assertUnitInterval(candidate.completeness, 'candidate completeness');
-    if (candidate.end < candidate.start) throw new RangeError('candidate end must not precede start');
+    if (candidate.end < candidate.start)
+      throw new RangeError('candidate end must not precede start');
     for (const coverage of Object.values(candidate.populationCoverage)) {
       assertUnitInterval(coverage, 'candidate population coverage');
     }
   }
   const populationWeightValues = Object.values(input.populationWeights);
   for (const weight of populationWeightValues) {
-    if (!Number.isFinite(weight) || weight < 0) throw new RangeError('population weights must be non-negative');
+    if (!Number.isFinite(weight) || weight < 0)
+      throw new RangeError('population weights must be non-negative');
   }
 }
 
@@ -346,7 +351,10 @@ function greedyByScore(
 ): number[] {
   return candidates
     .map((candidate, index) => ({ candidate, index }))
-    .sort((left, right) => right.candidate.finalScore - left.candidate.finalScore || left.index - right.index)
+    .sort(
+      (left, right) =>
+        right.candidate.finalScore - left.candidate.finalScore || left.index - right.index,
+    )
     .slice(0, maximumShortlistSize)
     .map(({ index }) => index);
 }
@@ -372,9 +380,10 @@ function rankGenomes(
       (left, right) =>
         right.objectiveScore - left.objectiveScore ||
         right.selected.length - left.selected.length ||
-        left.selected.map((candidate) => candidate.candidateId).join('|').localeCompare(
-          right.selected.map((candidate) => candidate.candidateId).join('|'),
-        ),
+        left.selected
+          .map((candidate) => candidate.candidateId)
+          .join('|')
+          .localeCompare(right.selected.map((candidate) => candidate.candidateId).join('|')),
     );
 }
 
@@ -383,7 +392,10 @@ function scoreSelection(
   input: ConstructOptimizationInput,
 ): number {
   if (selected.length === 0) return 0;
-  const coverage = weightedCoverage(calculateSetCoverage(selected, input.populationWeights), input.populationWeights);
+  const coverage = weightedCoverage(
+    calculateSetCoverage(selected, input.populationWeights),
+    input.populationWeights,
+  );
   const averageScore = average(selected.map((candidate) => candidate.finalScore));
   const rankPriority = average(selected.map((candidate) => 1 / candidate.rank));
   const redundancyPenalty = calculateRedundancyPenalty(selected);
@@ -466,17 +478,19 @@ function calculateSetCoverage(
     ...selected.flatMap((candidate) => Object.keys(candidate.populationCoverage)),
   ]);
   return Object.fromEntries(
-    [...populationIds].sort().map((populationId) => [
-      populationId,
-      round(
-        1 -
-          selected.reduce(
-            (missProbability, candidate) =>
-              missProbability * (1 - (candidate.populationCoverage[populationId] ?? 0)),
-            1,
-          ),
-      ),
-    ]),
+    [...populationIds]
+      .sort()
+      .map((populationId) => [
+        populationId,
+        round(
+          1 -
+            selected.reduce(
+              (missProbability, candidate) =>
+                missProbability * (1 - (candidate.populationCoverage[populationId] ?? 0)),
+              1,
+            ),
+        ),
+      ]),
   );
 }
 
@@ -580,7 +594,11 @@ function emptyOptimization(
 }
 
 function candidateOrder(left: ConstructCandidate, right: ConstructCandidate): number {
-  return left.rank - right.rank || left.start - right.start || left.candidateId.localeCompare(right.candidateId);
+  return (
+    left.rank - right.rank ||
+    left.start - right.start ||
+    left.candidateId.localeCompare(right.candidateId)
+  );
 }
 
 function equalPopulationWeights(candidates: readonly ConstructCandidate[]): Record<string, number> {
@@ -613,7 +631,9 @@ function seededRng(seed: string): () => number {
 }
 
 function average(values: readonly number[]): number {
-  return values.length === 0 ? 0 : round(values.reduce((sum, value) => sum + value, 0) / values.length);
+  return values.length === 0
+    ? 0
+    : round(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
 
 function clamp01(value: number): number {

@@ -57,12 +57,29 @@ export function StructuresPage() {
   const [structureDataUrl, setStructureDataUrl] = useState('');
   useEffect(() => {
     let cancelled = false;
-    if (selected === null) return () => { cancelled = true; };
-    void fetch(apiUrl(`/structures/${selected.id}/file${selected.status === 'DEMONSTRATION_ONLY' ? '?demo=1' : ''}`), { credentials: 'include' })
-      .then(async (response) => { if (!response.ok) throw new Error(`Structure download failed (${response.status})`); return response.text(); })
-      .then((content) => { if (!cancelled) setStructureDataUrl(`data:text/plain;base64,${btoa(content)}`); })
-      .catch(() => { if (!cancelled) setStructureDataUrl(''); });
-    return () => { cancelled = true; };
+    if (selected === null)
+      return () => {
+        cancelled = true;
+      };
+    void fetch(
+      apiUrl(
+        `/structures/${selected.id}/file${selected.status === 'DEMONSTRATION_ONLY' ? '?demo=1' : ''}`,
+      ),
+      { credentials: 'include' },
+    )
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Structure download failed (${response.status})`);
+        return response.text();
+      })
+      .then((content) => {
+        if (!cancelled) setStructureDataUrl(`data:text/plain;base64,${btoa(content)}`);
+      })
+      .catch(() => {
+        if (!cancelled) setStructureDataUrl('');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selected]);
   const create = useMutation({
     mutationFn: (body: unknown) =>
@@ -214,7 +231,9 @@ export function StructuresPage() {
                 <Atom />
                 <h3>{selected ? 'Preparing secure viewer' : 'Your structure appears here'}</h3>
                 <p>
-                  {selected ? 'Creating a short-lived private coordinate link.' : 'Import a PDB or AlphaFold model to inspect chains, residues, surfaces, and confidence.'}
+                  {selected
+                    ? 'Creating a short-lived private coordinate link.'
+                    : 'Import a PDB or AlphaFold model to inspect chains, residues, surfaces, and confidence.'}
                 </p>
               </div>
             )}
@@ -346,8 +365,8 @@ export function DockingPage() {
 function ExperimentalWorkflowNotice() {
   return (
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-      <strong>Experimental — outside the judged workflow.</strong>{' '}
-      This lab is an optional extension and is not part of the validated epitope evidence journey.
+      <strong>Experimental — outside the judged workflow.</strong> This lab is an optional extension
+      and is not part of the validated epitope evidence journey.
     </div>
   );
 }

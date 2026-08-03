@@ -2,7 +2,21 @@ import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
 const expectedModels = {
-  DockingJob: ['id', 'receptorId', 'ligandId', 'engine', 'engineVersion', 'status', 'parametersJson', 'score', 'poseArtifactPath', 'errorMessage', 'createdAt', 'startedAt', 'completedAt'],
+  DockingJob: [
+    'id',
+    'receptorId',
+    'ligandId',
+    'engine',
+    'engineVersion',
+    'status',
+    'parametersJson',
+    'score',
+    'poseArtifactPath',
+    'errorMessage',
+    'createdAt',
+    'startedAt',
+    'completedAt',
+  ],
   Approval: ['id', 'runId', 'type', 'status', 'snapshotHash', 'selectionJson', 'note', 'createdAt'],
   Artifact: [
     'id',
@@ -189,7 +203,20 @@ const expectedModels = {
     'createdAt',
   ],
   Session: ['id', 'userId', 'tokenHash', 'expiresAt', 'createdAt'],
-  StructureModel: ['id', 'name', 'source', 'sourceReference', 'format', 'artifactPath', 'sha256', 'sequenceHash', 'provider', 'providerVersion', 'status', 'createdAt'],
+  StructureModel: [
+    'id',
+    'name',
+    'source',
+    'sourceReference',
+    'format',
+    'artifactPath',
+    'sha256',
+    'sequenceHash',
+    'provider',
+    'providerVersion',
+    'status',
+    'createdAt',
+  ],
   User: ['id', 'email', 'displayName', 'passwordHash', 'createdAt', 'updatedAt'],
   WorkflowEvent: [
     'id',

@@ -13,7 +13,12 @@ export interface JudgeStep {
 
 function currentStepIndex(status: RunDetail['status']): number {
   if (status === 'DRAFT' || status === 'AWAITING_CONFIGURATION_APPROVAL') return 1;
-  if (status === 'QUEUED' || status === 'RUNNING' || status === 'FAILED' || status === 'CANCELLED') {
+  if (
+    status === 'QUEUED' ||
+    status === 'RUNNING' ||
+    status === 'FAILED' ||
+    status === 'CANCELLED'
+  ) {
     return 2;
   }
   if (status === 'AWAITING_SHORTLIST_APPROVAL') return 4;
@@ -76,7 +81,9 @@ export function JudgeJourney({ project, run }: { project: ProjectDetail; run: Ru
                 {step.status === 'complete' ? <Check className="size-3.5" /> : index + 1}
               </span>
               <span>{step.label}</span>
-              {step.status === 'current' ? <Circle className="ml-auto size-2 fill-current" /> : null}
+              {step.status === 'current' ? (
+                <Circle className="ml-auto size-2 fill-current" />
+              ) : null}
             </Link>
           </li>
         ))}
