@@ -96,6 +96,7 @@ export function StructuresPage() {
   const fileUrl = structureDataUrl;
   return (
     <div className="page-enter space-y-6">
+      <ExperimentalWorkflowNotice />
       <PageIntro
         icon={Cuboid}
         eyebrow="Structural biology"
@@ -256,6 +257,7 @@ export function DockingPage() {
   });
   return (
     <div className="page-enter space-y-6">
+      <ExperimentalWorkflowNotice />
       <PageIntro
         icon={Box}
         eyebrow="Molecular docking"
@@ -337,6 +339,15 @@ export function DockingPage() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function ExperimentalWorkflowNotice() {
+  return (
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+      <strong>Experimental — outside the judged workflow.</strong>{' '}
+      This lab is an optional extension and is not part of the validated epitope evidence journey.
     </div>
   );
 }

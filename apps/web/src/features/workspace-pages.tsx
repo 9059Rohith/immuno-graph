@@ -343,6 +343,13 @@ export function ProjectPage() {
     return <ErrorState message={query.error.message} onRetry={() => void query.refetch()} />;
   if (!query.data) return null;
   const { project, protein, runs } = query.data;
+  const latestRun = runs[0];
+  const continueTo =
+    latestRun === undefined ||
+    latestRun.status === 'DRAFT' ||
+    latestRun.status === 'AWAITING_CONFIGURATION_APPROVAL'
+      ? `/projects/${projectId}/settings`
+      : `/runs/${latestRun.id}`;
   return (
     <>
       {heading(project.name, 'Project overview and immutable protein input.')}
@@ -373,9 +380,9 @@ export function ProjectPage() {
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link to={`/projects/${projectId}/settings`}>
+              <Link to={continueTo}>
                 <Play aria-hidden="true" />
-                New analysis
+                {latestRun === undefined ? 'Configure first analysis' : 'Continue judge journey'}
               </Link>
             </Button>
           </CardContent>

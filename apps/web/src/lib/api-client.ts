@@ -24,11 +24,11 @@ export function apiUrl(path: string): string {
   return new URL(path.replace(/^\//, ''), absoluteBase).toString();
 }
 
-export async function apiRequest<T>(
+export async function apiRequest<TSchema extends z.ZodTypeAny>(
   path: string,
-  schema: z.ZodType<T>,
+  schema: TSchema,
   init?: RequestInit,
-): Promise<T> {
+): Promise<z.output<TSchema>> {
   let response: Response;
   try {
     response = await fetch(apiUrl(path), {

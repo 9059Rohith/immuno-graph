@@ -37,6 +37,7 @@ import { apiRequest } from '@/lib/api-client';
 import { useProject, useRun } from '@/features/data-hooks';
 import { useAuth } from '@/features/auth';
 import { useJudgeMode } from '@/features/judge-mode';
+import { JudgeJourney } from '@/features/judge-journey';
 
 const coreWorkspace = [
   { label: 'Dashboard', to: '/workspace', icon: LayoutDashboard },
@@ -102,11 +103,28 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </header>
         <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-5 px-4 py-5 md:px-7 md:py-6">
+          <JudgeJourneyContext />
           {children}
         </div>
       </SidebarInset>
     </SidebarProvider>
   );
+}
+
+function JudgeJourneyContext() {
+  const judge = useJudgeMode();
+  const { pathname } = useLocation();
+  const projectMatch = matchPath('/projects/:projectId/*', pathname);
+  const runMatch = matchPath('/runs/:runId/*', pathname);
+  const matchesWorkspace =
+    judge.workspace !== null &&
+    (projectMatch?.params.projectId === judge.workspace.projectId ||
+      runMatch?.params.runId === judge.workspace.runId);
+  const project = useProject(matchesWorkspace ? (judge.workspace?.projectId ?? '') : '');
+  const run = useRun(matchesWorkspace ? (judge.workspace?.runId ?? '') : '');
+
+  if (!matchesWorkspace || !project.data || !run.data) return null;
+  return <JudgeJourney project={project.data} run={run.data} />;
 }
 
 function ProjectNavigation() {
