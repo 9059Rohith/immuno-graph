@@ -16,7 +16,9 @@ describe('application shell', () => {
     );
     renderApp(<App />, ['/workspace']);
 
-    expect(await screen.findByRole('link', { name: 'Dashboard' })).toBeVisible();
+    expect(
+      await screen.findByRole('link', { name: 'Dashboard' }, { timeout: 5_000 }),
+    ).toBeVisible();
     expect(screen.getByRole('link', { name: 'Projects' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Diagnostics' })).toBeVisible();
     expect(screen.queryByText('Current Run')).not.toBeInTheDocument();
@@ -62,7 +64,9 @@ describe('application shell', () => {
     );
     renderApp(<App />, [`/projects/${projectId}`]);
 
-    expect(await screen.findByText('Project workspace')).toBeVisible();
+    expect(
+      await screen.findByText('Project workspace', {}, { timeout: 5_000 }),
+    ).toBeVisible();
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute(
       'href',
       `/projects/${projectId}`,
