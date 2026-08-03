@@ -33,7 +33,7 @@ export async function apiRequest<T>(
   try {
     response = await fetch(apiUrl(path), {
       ...init,
-      credentials: 'include',
+      credentials: init?.credentials ?? 'same-origin',
       headers: {
         Accept: 'application/json',
         ...(init?.body === undefined ? {} : { 'Content-Type': 'application/json' }),

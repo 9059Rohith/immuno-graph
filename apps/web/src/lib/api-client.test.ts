@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { apiRequest, apiUrl } from './api-client';
+import { apiJson, apiRequest, apiUrl } from './api-client';
 
 const requestId = '00000000-0000-4000-8000-000000000001';
 
@@ -10,6 +10,24 @@ afterEach(() => vi.unstubAllGlobals());
 describe('apiRequest', () => {
   it('builds same-origin API URLs for local and production proxying', () => {
     expect(apiUrl('/projects')).toBe('http://localhost:3000/api/v1/projects');
+  });
+
+  it('does not send cross-origin credentials by default', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ requestId, data: { ok: true } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiRequest('/demo/start', z.object({ ok: z.boolean() }), apiJson('POST', {}));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ credentials: 'same-origin' }),
+    );
   });
 
   it('returns validated envelope data', async () => {

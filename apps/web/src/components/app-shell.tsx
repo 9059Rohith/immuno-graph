@@ -36,10 +36,13 @@ import {
 import { apiRequest } from '@/lib/api-client';
 import { useProject, useRun } from '@/features/data-hooks';
 import { useAuth } from '@/features/auth';
+import { useJudgeMode } from '@/features/judge-mode';
 
-const workspace = [
-  { label: 'Dashboard', to: '/', icon: LayoutDashboard },
-  { label: 'Projects', to: '/', icon: FolderKanban },
+const coreWorkspace = [
+  { label: 'Dashboard', to: '/workspace', icon: LayoutDashboard },
+  { label: 'Projects', to: '/workspace', icon: FolderKanban },
+];
+const experimentalWorkspace = [
   { label: '3D Structures', to: '/structures', icon: Cuboid },
   { label: 'Docking Lab', to: '/docking', icon: Box },
 ];
@@ -50,6 +53,8 @@ const system = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const auth = useAuth();
+  const judge = useJudgeMode();
+  const workspace = judge.active ? coreWorkspace : [...coreWorkspace, ...experimentalWorkspace];
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
@@ -71,13 +76,30 @@ export function AppShell({ children }: { children: ReactNode }) {
         </SidebarContent>
         <SidebarFooter>
           <ApiConnectionStatus />
-          <button className="mt-2 flex items-center gap-2 rounded-lg px-2 py-2 text-xs hover:bg-sidebar-accent" onClick={() => void auth.logout()}><LogOut className="size-4" /> Sign out</button>
+          {judge.active ? (
+            <div className="mt-2 rounded-lg border border-sidebar-border bg-sidebar-accent px-2 py-2 text-xs">
+              <strong className="block">Judge Mode</strong>
+              <span className="text-sidebar-foreground/70">Synthetic · expires in 24h</span>
+            </div>
+          ) : (
+            <button
+              className="mt-2 flex items-center gap-2 rounded-lg px-2 py-2 text-xs hover:bg-sidebar-accent"
+              onClick={() => void auth.logout()}
+            >
+              <LogOut className="size-4" /> Sign out
+            </button>
+          )}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-14 items-center border-b bg-card/90 px-4 backdrop-blur-md md:px-6">
           <SidebarTrigger aria-label="Toggle navigation" />
-          <span className="ml-3 text-sm text-muted-foreground">Research workspace</span><span className="ml-auto hidden text-sm font-medium sm:inline">{auth.user?.displayName}</span>
+          <span className="ml-3 text-sm text-muted-foreground">
+            {judge.active ? 'Judge Mode · synthetic fixture' : 'Research workspace'}
+          </span>
+          <span className="ml-auto hidden text-sm font-medium sm:inline">
+            {judge.active ? 'No account required' : auth.user?.displayName}
+          </span>
         </header>
         <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-5 px-4 py-5 md:px-7 md:py-6">
           {children}

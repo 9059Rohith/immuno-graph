@@ -14,9 +14,9 @@ describe('application shell', () => {
       'fetch',
       vi.fn(async () => new Response('', { status: 503 })),
     );
-    renderApp(<App />);
+    renderApp(<App />, ['/workspace']);
 
-    expect(screen.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Dashboard' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Projects' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Diagnostics' })).toBeVisible();
     expect(screen.queryByText('Current Run')).not.toBeInTheDocument();

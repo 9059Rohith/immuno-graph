@@ -9,6 +9,7 @@ import { Toaster } from './components/ui/sonner';
 import { createAppQueryClient } from './lib/query-client';
 import './styles.css';
 import { AuthProvider } from './features/auth';
+import { JudgeModeProvider } from './features/judge-mode';
 
 const rootElement = document.getElementById('root');
 
@@ -22,10 +23,14 @@ createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider><TooltipProvider>
-          <App />
-          <Toaster />
-        </TooltipProvider></AuthProvider>
+        <AuthProvider>
+          <JudgeModeProvider>
+            <TooltipProvider>
+              <App />
+              <Toaster />
+            </TooltipProvider>
+          </JudgeModeProvider>
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

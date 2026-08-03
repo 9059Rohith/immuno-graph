@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('dashboard loads API-backed project data and primary navigation works', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/workspace');
   await expect(page.getByRole('heading', { name: /research projects/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /new project/i }).first()).toBeVisible();
 
@@ -18,7 +18,7 @@ test('dashboard loads API-backed project data and primary navigation works', asy
 test('core pages have a single main landmark, named controls, and no horizontal overflow', async ({
   page,
 }) => {
-  for (const path of ['/', '/projects/new', '/system/diagnostics', '/system/about']) {
+  for (const path of ['/', '/workspace', '/projects/new', '/system/diagnostics', '/system/about']) {
     await page.goto(path);
     await expect(page.locator('main')).toHaveCount(1);
     await expect(page.locator('h1')).toHaveCount(1);
