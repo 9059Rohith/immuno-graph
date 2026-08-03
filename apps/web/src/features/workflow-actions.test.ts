@@ -15,6 +15,13 @@ const { approveConfiguration, createRun } = vi.hoisted(() => ({
 }));
 
 vi.mock('./data-hooks', () => ({
+  useRun: () => ({
+    data: undefined,
+    error: undefined,
+    isError: false,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
   useApproveConfiguration: () => ({
     data: undefined,
     error: undefined,

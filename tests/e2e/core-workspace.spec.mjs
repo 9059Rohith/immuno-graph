@@ -34,6 +34,7 @@ test('core pages have a single main landmark, named controls, and no horizontal 
 
 test('keyboard navigation exposes visible focus', async ({ page }) => {
   await page.goto('/');
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
   await page.keyboard.press('Tab');
   const focused = page.locator(':focus');
   await expect(focused).toBeVisible();

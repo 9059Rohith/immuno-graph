@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- component and pure step derivation share one feature contract. */
 import type { ProjectDetail, RunDetail } from '@immunograph/shared';
 import { Check, Circle } from 'lucide-react';
 import { Link } from 'react-router-dom';

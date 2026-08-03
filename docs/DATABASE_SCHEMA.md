@@ -54,6 +54,8 @@ erDiagram
 | `organism` | String? | max 200 |
 | `proteinName` | String? | max 200 |
 | `description` | String? | max 2,000 |
+| `isDemo` | Boolean | false by default; marks isolated public-demo workspaces |
+| `demoExpiresAt` | DateTime? | indexed with `isDemo`; enables automatic demo cleanup |
 | `createdAt` | DateTime | indexed |
 | `updatedAt` | DateTime | mutable metadata only |
 

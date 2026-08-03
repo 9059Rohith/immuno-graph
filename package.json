@@ -16,6 +16,9 @@
     "apps/api",
     "apps/mcp"
   ],
+  "overrides": {
+    "@hono/node-server": "2.0.12"
+  },
   "scripts": {
     "prebuild": "npm install --ignore-scripts --engine-strict=false && npm run db:generate",
     "predev": "npm run db:migrate --workspace @immunograph/database",
@@ -64,5 +67,8 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.65.0",
     "vitest": "4.1.10"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.0.12"
   }
 }

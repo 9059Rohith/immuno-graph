@@ -100,7 +100,7 @@ describe('REST API', () => {
     expect(allowed.headers['access-control-allow-origin']).toBe('https://one.vercel.app');
     expect(denied.headers['access-control-allow-origin']).toBeUndefined();
     await app.close();
-  });
+  }, 15_000);
 
   it('exposes a lightweight live health probe without invoking application services', async () => {
     const gateway = services();

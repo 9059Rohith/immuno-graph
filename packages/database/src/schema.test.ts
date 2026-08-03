@@ -154,7 +154,17 @@ const expectedModels = {
     'startedAt',
     'completedAt',
   ],
-  Project: ['id', 'name', 'organism', 'proteinName', 'description', 'createdAt', 'updatedAt'],
+  Project: [
+    'id',
+    'name',
+    'organism',
+    'proteinName',
+    'description',
+    'isDemo',
+    'demoExpiresAt',
+    'createdAt',
+    'updatedAt',
+  ],
   ProteinInput: [
     'id',
     'projectId',

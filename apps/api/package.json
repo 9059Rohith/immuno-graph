@@ -17,7 +17,7 @@
     "@immunograph/algorithms": "0.1.0",
     "@immunograph/database": "0.1.0",
     "@immunograph/shared": "0.1.0",
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "dotenv": "17.4.2",
     "fastify": "5.10.0",
     "pino": "10.3.1",
