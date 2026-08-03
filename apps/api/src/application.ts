@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import type { ApiEnvironment } from './config/environment.js';
@@ -95,6 +96,13 @@ export function createApiApplication(
   application.get('/health/ready', async () => {
     if (database !== undefined) await database.$queryRaw`SELECT 1`;
     return { status: 'ok', service: 'immunograph-api' };
+  });
+
+  const allowedOrigins = new Set(environment.CORS_ORIGINS);
+  void application.register(cors, {
+    origin(origin, callback) {
+      callback(null, origin !== undefined && allowedOrigins.has(origin));
+    },
   });
 
   if (database !== undefined) {

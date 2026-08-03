@@ -11,6 +11,7 @@ const environment: ApiEnvironment = {
   API_PORT: 3000,
   APPLICATION_VERSION: '0.1.0',
   ARTIFACT_ROOT: './artifacts',
+  CORS_ORIGINS: ['https://one.vercel.app', 'https://two.vercel.app'],
   DATABASE_URL: 'file:./unused.db',
   DEMO_MODE: true,
   LLM_ENABLED: false,
@@ -82,6 +83,25 @@ const runBody = {
 };
 
 describe('REST API', () => {
+  it('echoes only an exact configured browser origin', async () => {
+    const gateway = services();
+    const app = createApiApplication(environment, gateway);
+    const allowed = await app.inject({
+      method: 'GET',
+      url: '/health/live',
+      headers: { origin: 'https://one.vercel.app' },
+    });
+    const denied = await app.inject({
+      method: 'GET',
+      url: '/health/live',
+      headers: { origin: 'https://evil.example' },
+    });
+
+    expect(allowed.headers['access-control-allow-origin']).toBe('https://one.vercel.app');
+    expect(denied.headers['access-control-allow-origin']).toBeUndefined();
+    await app.close();
+  });
+
   it('exposes a lightweight live health probe without invoking application services', async () => {
     const gateway = services();
     const app = createApiApplication(environment, gateway);

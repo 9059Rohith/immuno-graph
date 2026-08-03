@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@fastify/cors": "11.3.0",
     "@immunograph/algorithms": "0.1.0",
     "@immunograph/database": "0.1.0",
     "@immunograph/shared": "0.1.0",

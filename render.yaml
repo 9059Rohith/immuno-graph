@@ -1,0 +1,62 @@
+services:
+  - type: web
+    name: immunograph-mcp
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile.mcp
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: 'production'
+      - key: HOST
+        value: '0.0.0.0'
+      - key: PORT
+        value: '3001'
+      - key: MCP_TRANSPORT_TYPE
+        value: 'http'
+      - key: IEDB_LIVE_ENABLED
+        value: 'false'
+      - key: IEDB_POPULATION_COVERAGE_ENABLED
+        value: 'false'
+      - key: MHCFLURRY_ENABLED
+        value: 'false'
+
+  - type: web
+    name: immunograph-api
+    runtime: docker
+    plan: starter
+    region: singapore
+    dockerfilePath: ./Dockerfile.api
+    dockerContext: .
+    healthCheckPath: /health/ready
+    autoDeployTrigger: commit
+    disk:
+      name: immunograph-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: 'production'
+      - key: API_HOST
+        value: '0.0.0.0'
+      - key: PORT
+        value: '3000'
+      - key: API_PORT
+        value: '3000'
+      - key: API_LOG_LEVEL
+        value: 'info'
+      - key: DATABASE_URL
+        value: 'file:/data/immunograph.db'
+      - key: ARTIFACT_ROOT
+        value: '/data/artifacts'
+      - key: DEMO_MODE
+        value: 'true'
+      - key: LLM_ENABLED
+        value: 'false'
+      - key: CORS_ORIGINS
+        sync: false
+      - key: MCP_SERVER_URL
+        sync: false

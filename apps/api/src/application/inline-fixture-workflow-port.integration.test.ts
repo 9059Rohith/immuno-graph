@@ -24,6 +24,7 @@ describe('inline synthetic fixture workflow', () => {
       API_PORT: 3000,
       APPLICATION_VERSION: '0.1.0',
       ARTIFACT_ROOT: artifactRoot,
+      CORS_ORIGINS: ['http://localhost:5173'],
       DATABASE_URL: database.databaseUrl,
       DEMO_MODE: true,
       LLM_ENABLED: false,

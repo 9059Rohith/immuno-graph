@@ -12,6 +12,7 @@ const environment: ApiEnvironment = {
   NODE_ENV: 'test',
   DATABASE_URL: 'file:./unused.db',
   ARTIFACT_ROOT: './artifacts',
+  CORS_ORIGINS: ['http://localhost:5173'],
   DEMO_MODE: true,
   LLM_ENABLED: false,
   APPLICATION_VERSION: '0.1.0',
