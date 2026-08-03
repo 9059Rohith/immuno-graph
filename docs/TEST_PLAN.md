@@ -4,7 +4,7 @@
 
 Prove that ImmunoGraph is reproducible, honest about provenance, safe under connector failure, and incapable of bypassing deterministic constraints or approvals.
 
-Vitest is the required test runner. Browser-level tests may add a compatible tool later, but the MVP must not leave core flows dependent on manual testing.
+Vitest is the component, integration, and contract test runner. Playwright verifies the credential-free judge journey in Desktop Chrome and Pixel 7 profiles. The core fixture flow must not depend on manual testing or internet access.
 
 ## 2. Test layers
 
@@ -289,8 +289,8 @@ npm run lint
 npm run typecheck
 npm test -- --coverage
 npm run build
-npm run test:fixtures
-npm run test:migrations
+npm test -- packages/database/src/fixture-loader.test.ts
+npm test -- packages/database/src/repositories.test.ts
 ```
 
 Network-dependent tests are separate and do not make the core build flaky.

@@ -4,6 +4,8 @@
 
 ImmunoGraph provides computational decision support. It does not discover, validate, prescribe, or recommend a vaccine or medical intervention. All outputs require independent review by qualified researchers and experimental validation.
 
+The public hackathon deployment contains demonstration data only, provides best-effort 24-hour workspace retention, and is not suitable for confidential, patient, clinical, or proprietary inputs.
+
 ## Scientific limitations
 
 1. **Prediction is not validation.** MHC binding, B-cell epitope, and population-coverage outputs are computational estimates.
@@ -17,9 +19,10 @@ ImmunoGraph provides computational decision support. It does not discover, valid
    export and must not be interpreted as pathogen or research data.
 7. **GraphBepi is fixture-only.** MVP B-cell results do not demonstrate a live GraphBepi integration and are limited to curated inputs with exact fixture matches.
 8. **Synthetic prediction is demonstration-only.** The deterministic offline binding and population-coverage tools exercise orchestration and reproducibility, not biological validity. Their outputs always carry `scientificUse=false` and must never be used for research conclusions or clinical decisions.
-8. **Cached results can age.** Cache reuse is valid only for an exact method/version/parameter key and within the configured retention policy.
-9. **External availability is uncontrolled.** APIs, web services, executables, methods, licenses, and quotas may change.
-10. **Explanations inherit evidence limits.** LLM-generated text can summarize recorded evidence but adds no scientific confidence.
+9. **Cached results can age.** Cache reuse is valid only for an exact method/version/parameter key and within the configured retention policy.
+10. **External availability is uncontrolled.** APIs, web services, executables, methods, licenses, and quotas may change.
+11. **Explanations inherit evidence limits.** LLM-generated text can summarize recorded evidence but adds no scientific confidence.
+12. **Fixed scorer coefficients are not trained evidence.** The deterministic dual-head demonstration scorer has no documented training dataset or validation experiment and cannot support an accuracy or biological-validity claim.
 
 ## MVP limitations
 
@@ -27,7 +30,7 @@ ImmunoGraph provides computational decision support. It does not discover, valid
 - One protein FASTA record per workflow.
 - No batch projects.
 - No de novo protein structure prediction.
-- No structural docking or compound screening.
+- The optional 3D structure and docking labs are experimental extensions outside the validated epitope workflow; their demonstration output is not shortlist evidence.
 - No vaccine construct optimization.
 - No wet-lab protocol execution.
 - No automated literature evidence synthesis.

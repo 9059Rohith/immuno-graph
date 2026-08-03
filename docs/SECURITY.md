@@ -2,9 +2,9 @@
 
 ## 1. Scope and trust boundary
 
-The MVP is a single-researcher local application with no authentication. It is trusted only when bound to `127.0.0.1` and used on the researcher’s machine.
+The research workspace is a single-researcher application. Locally it is trusted only when bound to `127.0.0.1` and used on the researcher’s machine.
 
-It is not safe to expose directly to a public network. Remote or multi-user deployment requires authentication, authorization, TLS, tenant isolation, and a separate security review.
+The hackathon deployment is a separate **public demonstration profile**: it contains no private research data, accepts only reviewed synthetic fixtures, creates isolated opaque UUID workspaces, expires them after 24 hours, applies exact-origin CORS, and discloses best-effort retention. Credential-free Judge Mode is a usability feature, not an authorization mechanism. Any remote deployment containing real research data still requires authentication, authorization, TLS, tenant isolation, and a separate security review.
 
 ## 2. Protected assets
 

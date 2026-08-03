@@ -15,6 +15,6 @@ export default defineConfig({
       reporter: ['text', 'html'],
     },
     environment: 'node',
-    include: ['apps/**/*.test.{ts,tsx}', 'packages/**/*.test.ts'],
+    include: ['apps/**/*.test.{ts,tsx}', 'packages/**/*.test.ts', 'scripts/**/*.test.ts'],
   },
 });

@@ -7,6 +7,10 @@
 **Primary user:** Bioinformatics or immunology researcher reviewing predicted epitopes  
 **Primary outcome:** A researcher-approved, reproducible epitope shortlist for experimental consideration
 
+### Hackathon public-demo profile
+
+The BlockseBlock Track 4 submission exposes a credential-free **Judge Mode** containing only reviewed synthetic fixture data. Each launch creates an isolated UUID project/run that expires after 24 hours. The judged path is Input → Configure → Run → Evidence → Approve → Report, with a Scientific Trust Center derived from stored hashes, provenance, rules, approvals, artifacts, and abstention evidence. This public profile is not a research-data service.
+
 ## 2. Vision
 
 Make computational epitope prioritization transparent and reproducible by combining authoritative prediction tools, deterministic biological rules, visible provenance, and human approval through MCP-native interfaces.

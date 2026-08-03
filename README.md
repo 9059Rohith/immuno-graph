@@ -1,256 +1,200 @@
 # ImmunoGraph
 
-**An MCP-native, multi-agent decision-support system for reliable vaccine epitope prioritization.**
+From protein sequence to an auditable epitope shortlist—without allowing an LLM to invent biological evidence.
 
-ImmunoGraph turns a protein sequence and a researcher-approved analysis configuration into a ranked, evidence-backed epitope shortlist. The Fastify application service invokes one separately running NitroStack MCP server over Streamable HTTP. It prefers configured live scientific predictors, can use an unmistakably synthetic deterministic demonstration path when demo mode permits it, and retains exact approved fixture replay as the final fallback.
+**BlockseBlock Codex Track 4 — Domain Agents** · MCP-native scientific decision support · human-governed · deterministic offline judge demo
 
-> ImmunoGraph is a computational prioritization tool, not a vaccine-discovery or clinical-decision system. Its outputs require independent expert review and experimental validation.
+> ImmunoGraph is a computational demonstration, not a vaccine-discovery, clinical-decision, or experimental-validation system.
 
-## The problem
+## 1. Live demo and three-minute video
 
-Researchers routinely move data among MHC-I, MHC-II, B-cell, and population-coverage tools. Those tools expose different formats and score directions, can disagree, and often leave the researcher to reconcile spreadsheets manually. This makes candidate selection slow, hard to audit, and difficult to reproduce.
+The public URLs are added only after the owner deploys and verifies the exact submitted commit. This repository never publishes a fabricated demo or video link. The final publication fields and visibility checks are in [the submission checklist](docs/SUBMISSION_CHECKLIST.md).
 
-ImmunoGraph addresses one focused question:
+## 2. Launch the judge demo
 
-> Which computationally predicted epitopes have enough consistent evidence to justify further experimental investigation?
+1. Open the deployed web application.
+2. Select **Launch judge demo**—no account or credentials are required.
+3. Follow the six-step rail: **Input → Configure → Run → Evidence → Approve → Report**.
+4. Open **Scientific Trust Center** to inspect provenance, approval snapshots, and SHA-256 evidence.
 
-## What the MVP does
+Each launch creates an isolated UUID workspace backed only by a reviewed synthetic fixture. Browser state contains only the project ID, run ID, and expiry; the workspace expires after 24 hours.
 
-1. Accepts a protein FASTA sequence plus project metadata.
-2. Validates and hashes the normalized sequence.
-3. Generates valid MHC-I and MHC-II peptide windows.
-4. Runs approved IEDB MHC-I/MHC-II predictors, optional local MHCflurry MHC-I prediction, plus the fixture-only MVP GraphBepi path.
-5. Resolves `LIVE`, `CACHED`, `SYNTHETIC`, and `FIXTURE` evidence according to the immutable run policy.
-6. Normalizes predictor outputs without changing the underlying raw values.
-7. Computes binding, consensus, evidence completeness, and estimated population-coverage evidence.
-8. Applies deterministic constraint rules before ranking.
-9. Ranks candidates within scientifically compatible tracks.
-10. Pauses for researcher review and approval.
-11. Exports the shortlist, rejected candidates, visualizations, evidence graph, and workflow trace.
+## 3. Problem and focused outcome
 
-## What it deliberately does not do
+Epitope prioritization often means reconciling incompatible predictor formats, score directions, fallback behavior, biological constraints, and spreadsheets. A shortlist can look authoritative while hiding where a value came from or whether a human approved it.
 
-- claim to discover or validate a vaccine;
-- infer wet-lab efficacy, safety, or clinical outcomes;
-- generate binding scores with an LLM;
-- override a deterministic constraint with model prose;
-- perform docking, molecular dynamics, de novo protein folding, or vaccine-construct design in the MVP;
-- silently mix live, cached, and fixture results.
-- calculate conservation in the MVP; conservation is reserved for Product Phase 2 (post-MVP).
+ImmunoGraph produces one focused outcome: a reproducible, researcher-approved computational shortlist whose inputs, source states, rules, rankings, approvals, and exports remain inspectable.
 
-See [LIMITATIONS.md](docs/LIMITATIONS.md) for the full boundary.
+## 4. Why ImmunoGraph is original
 
-## Hybrid scientific execution
+- **Evidence is a graph, not a paragraph.** Candidates stay connected to predictor executions, constraints, rankings, and approval snapshots.
+- **An agent coordinates typed tools but cannot author biology.** The workflow supervisor and MCP contracts control scientific operations; optional LLM prose cannot create or mutate scores.
+- **Fallback is visible.** `LIVE`, `CACHED`, `SYNTHETIC`, `FIXTURE`, and `FAILED` never collapse into one confidence label.
+- **Abstention is a feature.** Missing or conflicting evidence remains `UNAVAILABLE`, `REVIEW`, `REJECTED`, `PARTIAL`, or `FAILED` rather than becoming a fabricated answer.
+- **Trust is inspectable.** The Trust Center exposes six independent checks instead of an invented aggregate trust percentage.
 
-Every connector result carries a visible source status:
+## 5. Three-minute product walkthrough
 
-| Status | Meaning |
-|---|---|
-| `LIVE` | Produced by a live configured predictor in this workflow run. |
-| `CACHED` | Reused from a previously successful live call with an exact cache-key match. |
-| `SYNTHETIC` | Generated by the deterministic offline demonstration predictor. `scientificUse=false`; not a biological prediction. |
-| `FIXTURE` | Loaded from a curated, versioned demo fixture after policy-approved fallback. |
-| `FAILED` | No valid result was produced. The branch is incomplete and cannot be presented as live evidence. |
+| Time | Judge action | Technical evidence |
+|---|---|---|
+| 0:00–0:25 | Launch Judge Mode | Credential-free, isolated, expiring fixture workspace |
+| 0:25–0:50 | Inspect input and approve configuration | Protein/configuration hashes and an explicit human gate |
+| 0:50–1:20 | Start the run and open workflow | Server-recorded stages and fixture-only source state |
+| 1:20–1:55 | Review candidates and constraints | Track-specific ranking, rejections, and provenance |
+| 1:55–2:20 | Approve a shortlist | Snapshot-bound decision; report remains locked beforehand |
+| 2:20–2:45 | Open Scientific Trust Center | Manifest, provenance, constraints, approvals, abstention, hashes |
+| 2:45–3:00 | Generate and download report | Content-addressed JSON/CSV/evidence/workflow artifacts |
 
-The UI must show the status beside each predictor. Fixture-derived outputs are never relabeled as live or cached scientific evidence.
+The exact narration and fallback path are in [the demo script](docs/DEMO_SCRIPT.md).
 
-Each run also records an execution mode: `LIVE`, `SYNTHETIC`, `FIXTURE`, or `HYBRID`. `AUTO` is a requested mode, not a result mode. Synthetic and hybrid runs display a non-dismissible **OFFLINE SYNTHETIC DEMONSTRATION — NOT SCIENTIFIC OUTPUT** notice in the run UI and exported reports.
+## 6. Product visual
 
-GraphBepi is deliberately fixture-only in the MVP. The system never attempts a live GraphBepi execution and never reports GraphBepi as `LIVE` or `CACHED`. A GraphBepi run requires an exact approved fixture match or the B-cell branch fails explicitly.
+![Abstract evidence graph used in the ImmunoGraph judge experience](apps/web/src/assets/judge-evidence-hero.webp)
 
-MHCflurry is supported as an optional local MHC-I connector. It is disabled by default and only reports `LIVE` after the MHCflurry CLI and prediction models are installed in the runtime and `MHCFLURRY_ENABLED=true` is set.
+The release ledger records desktop and Pixel 7 screenshots produced by the browser suite; generated screenshots and traces are intentionally excluded from source control.
 
-The offline hackathon path includes a fast, dependency-free deterministic
-dual-head demonstration scorer. Its fixed, versioned coefficients operate on
-an 18-feature peptide/HLA representation and produce an explicit disagreement
-signal. The repository contains no training dataset or validation experiment,
-so these values are not presented as trained ML/DL predictions or as evidence
-of biological accuracy. They are always labeled `SYNTHETIC`, carry
-`scientificUse=false`, and exist only to make offline software behavior
-reproducible.
-
-For local development, install and verify MHCflurry with:
-
-```bash
-npm run connectors:install:mhcflurry
-npm run connectors:check:mhcflurry
-```
-
-Then set `MHCFLURRY_ENABLED=true` and point `MHCFLURRY_COMMAND` at the printed `mhcflurry-predict-scan` executable. IEDB live mode is enabled with `IEDB_LIVE_ENABLED=true`.
-
-## Workflow
+## 7. System and MCP architecture
 
 ```mermaid
-flowchart TD
-    A[Upload FASTA] --> B[Validate and hash sequence]
-    B --> C[Researcher confirms configuration]
-    C --> D[Generate candidate peptides]
-    D --> E1[MHC-I prediction]
-    D --> E2[MHC-II prediction]
-    D --> E3[B-cell prediction]
-    E1 --> F[Normalize and join evidence]
-    E2 --> F
-    E3 --> F
-    F --> G[Consensus and completeness]
-    G --> COV[Singleton T-cell population coverage]
-    G --> H[Deterministic constraints]
-    COV --> H
-    H --> I[Track-specific ranking]
-    I --> OPT[Coverage-aware T-cell shortlist]
-    I --> J[Researcher review]
-    OPT --> J
-    J --> K[Approved export]
+flowchart LR
+    J[Judge / Researcher] --> W[React + Vite on Vercel]
+    W -->|HTTPS + strict Zod contracts| A[Fastify API on Render]
+    A -->|Streamable HTTP MCP| M[MCP service on Render]
+    A --> D[(Prisma + SQLite persistent disk)]
+    A --> R[Content-addressed artifacts]
+    M --> P[Prediction tools]
+    M --> E[Evidence tools]
+    M --> C[Constraint tools]
+    M --> G[Report tools]
+    P --> L[Configured live adapters]
+    P --> F[Reviewed synthetic fixtures]
 ```
 
-## Architecture at a glance
+The web client has no database or secret-bearing dependency. The API owns mutation, approvals, isolation, retention, and artifacts. The separately deployable MCP service validates every tool request and response. Judge Mode remains operational through the exact fixture path when optional external predictors are unavailable.
 
-```text
-React + Vite + shadcn/ui
-            |
-        Fastify API
-            |
-  Deterministic workflow supervisor
-            |
-       NitroStack MCP server
-  +---------------------------------------+
-  | Prediction | Evidence | Constraint    |
-  | Report tools and resources            |
-  +---------------------------------------+
-            |
- Live adapters | SQLite cache | Fixtures
-            |
-       Prisma + SQLite
+See [architecture](docs/ARCHITECTURE.md), [agent contract](docs/AGENT_SPEC.md), and [MCP contract](docs/MCP_SPEC.md).
+
+## 8. Deterministic scientific and safety boundaries
+
+- Scientific values come from identified connector outputs, exact cache hits, deterministic synthetic demonstrations, or reviewed fixtures—never from an LLM.
+- Two fixed, versioned demonstration scoring heads exercise feature, disagreement, and model-integration plumbing. The repository contains no training dataset or validation experiment, so they are not described as trained ML/DL predictors or evidence of biological accuracy.
+- Configuration and shortlist approvals are mandatory, immutable snapshot events.
+- Fixture and synthetic outputs carry `scientificUse=false` and a non-dismissible disclaimer.
+- Experimental 3D structure and docking labs are outside the judged epitope workflow.
+- Reports require independent expert review and experimental validation.
+
+Read the full [responsible-use boundary](docs/LIMITATIONS.md) and [security model](docs/SECURITY.md).
+
+## 9. Scientific Trust Center and evaluation evidence
+
+`GET /api/v1/runs/:runId/trust-summary` derives an open evidence view directly from repository records:
+
+| Check | Evidence |
+|---|---|
+| Fixture manifest integrity | Reviewed fixture metadata and frozen manifest/content hashes |
+| Connector provenance completeness | Connector, method, version, source state, and input/output hashes |
+| Biological constraints enforced | Immutable rule outcomes recorded before ranking |
+| Human approval gates | Configuration and shortlist snapshot hashes |
+| Artifact hash verification | SHA-256 for generated JSON, CSV, graph, and trace artifacts |
+| Abstention visible | Explicit review/fail outcomes rather than forced confidence |
+
+Each check returns `PASS`, `FAIL`, or `UNAVAILABLE` with inspectable detail. There is deliberately no aggregate “trust score.”
+
+## 10. How Codex helped build this release
+
+The hackathon hardening was performed as an evidence-backed Codex workflow:
+
+- [approved design specification](docs/superpowers/specs/2026-08-03-hackathon-top-tier-submission-design.md);
+- [test-first implementation plan](docs/superpowers/plans/2026-08-03-hackathon-top-tier-submission.md);
+- focused commits for demo retention, judge entry, guided workflow, trust evaluation, and end-to-end verification;
+- [Codex build log](docs/CODEX_BUILD_LOG.md) with real repository artifacts and boundaries;
+- [release verification ledger](docs/superpowers/verification/2026-08-03-hackathon-release.md), created by the final quality gate.
+
+Codex did not manufacture deployment links, scientific accuracy, wet-lab validation, impact statistics, or authorship claims.
+
+## 11. Verified test and build results
+
+The pre-hardening repository baseline contained 311 passing automated tests. The final exact test, coverage, build, audit, container, and browser results are recorded—not estimated—in the [release verification ledger](docs/superpowers/verification/2026-08-03-hackathon-release.md).
+
+The required release gate is:
+
+```bash
+npm run format:check
+npm run lint
+npm run typecheck
+npm test
+npm run test:coverage
+npm run build
+npm run docs:check
+npm run test:e2e
+npm audit
 ```
 
-The MVP runs one NitroStack MCP server process on `http://127.0.0.1:3001/mcp`. Prediction, Evidence, Constraint, and Report remain internal capability modules. The API uses the MCP SDK over HTTP; it does not import or call MCP controllers directly.
+The credential-free judge journey is exercised in Desktop Chrome and Pixel 7 profiles through launch, both approvals, run execution, Trust Center, report generation, and download—with console errors and horizontal overflow treated as failures.
 
-## Run locally
+## 12. Local development
 
-```powershell
-npm install
+Prerequisites: Node.js 20.19.x and npm 10.x.
+
+```bash
+npm ci
+npm run db:generate
 npm run db:migrate
-npm run db:seed
 npm run dev
 ```
 
-Run `npm run db:generate` after a dependency-only install or a Prisma schema
-change. Production builds perform this generation automatically after the full
-workspace source has been copied.
+Open `http://127.0.0.1:5173`. The API and MCP defaults are documented in [.env.example](.env.example). The deterministic judge path requires no provider credentials.
 
-`npm run dev` starts the web app, Fastify API, and NitroStack MCP server together. Defaults are web `5173`, API `3000`, and MCP `3001`. The API endpoint can be changed with `MCP_SERVER_URL`.
+Useful checks:
 
-## NitroStack Cloud deployment
+```bash
+npm run verify
+npm run test:e2e -- --project=judge-chromium
+npm run demo:cleanup
+```
 
-ImmunoGraph deploys to NitroStack Cloud as an MCP-first app. The cloud artifact is
-`apps/mcp`; the React workspace and Fastify API remain separately deployable.
-Follow the verified [NitroCloud deployment guide](docs/NITROCLOUD_DEPLOYMENT.md)
-for the current CLI limitations, dashboard settings, environment variables, and
-post-deployment checks.
+## 13. Vercel and Render deployment
 
-Cloud target:
+The committed [Vercel configuration](vercel.json) builds the Vite workspace and rewrites SPA routes. The committed [Render Blueprint](render.yaml) provisions the API, MCP service, and an API persistent disk.
+
+Required values after the first deploy:
+
+- Vercel: `VITE_API_BASE_URL=https://<api-service>.onrender.com/api/v1`
+- Render API: `CORS_ORIGINS=https://<web-project>.vercel.app`
+- Render API: `MCP_SERVER_URL=http://<mcp-service>:3001/mcp`
+- Render API disk: `DATABASE_URL=file:/data/immunograph.db`, `ARTIFACT_ROOT=/data/artifacts`
+
+Use the exact steps and health probes in [the deployment guide](docs/DEPLOYMENT.md). Do not Final Submit until the deployed commit, public repository, video, and Google Doc all match.
+
+## 14. Repository map
 
 ```text
-NitroStack Cloud
-  apps/mcp
-    /mcp          Streamable HTTP MCP endpoint
-    /mcp/health   NitroStack health probe
-    /sse          legacy SDK SSE endpoint, when enabled by NitroStack
+apps/web/          React judge and researcher experience
+apps/api/          Fastify routes, application services, approvals, artifacts
+apps/mcp/          Typed MCP scientific capability server
+packages/shared/   Zod API/view contracts
+packages/algorithms/ Pure deterministic scientific/demo algorithms
+packages/database/ Prisma schema, repositories, fixtures, migrations
+data/              Reviewed profiles and synthetic fixtures
+tests/e2e/         Credential-free desktop/mobile judge journeys
+docs/              Architecture, safety, demo, deployment, and evidence
 ```
 
-Recommended cloud environment:
+Contributor commands and scientific-change rules are in [CONTRIBUTING.md](CONTRIBUTING.md); agent-specific safeguards are in [AGENTS.md](AGENTS.md).
 
-```env
-NODE_ENV=production
-HOST=0.0.0.0
-PORT=3001
-MCP_TRANSPORT_TYPE=dual
-IEDB_LIVE_ENABLED=true
-IEDB_POPULATION_COVERAGE_ENABLED=true
-IEDB_POPULATION_COVERAGE_SCRIPT_PATH=/opt/iedb/population_coverage/calculate_population_coverage.py
-IEDB_POPULATION_COVERAGE_PYTHON_COMMAND=python3
-MHCFLURRY_ENABLED=false
-DEMO_MODE=true
-```
+## 15. Limitations
 
-Verify and build only the MCP app:
+ImmunoGraph does not establish binding affinity, immunogenicity, safety, efficacy, population benefit, or clinical suitability. The public deployment contains demonstration data only, offers best-effort 24-hour retention, and is not a multi-tenant research-data service. Optional live tools can be unavailable or license-restricted. See [all limitations](docs/LIMITATIONS.md).
 
-```powershell
-npm run nitro:verify
-npm start
-```
+## 16. Authoritative scientific and technical sources
 
-Docker deployment:
+- [IEDB Analysis Resource](https://tools.iedb.org/main/) for documented epitope-analysis tools.
+- [MHCflurry documentation](https://openvax.github.io/mhcflurry/) for the optional local MHC-I connector.
+- [RCSB Protein Data Bank](https://www.rcsb.org/) for the experimental structure source used only by the optional structure lab.
+- [Model Context Protocol](https://modelcontextprotocol.io/) for the typed tool boundary.
 
-```powershell
-docker build -f Dockerfile.mcp -t immunograph-mcp .
-docker run --rm -p 3001:3001 --env-file .env.production.example immunograph-mcp
-```
+Project-specific assumptions, profile versions, fixture hashes, and source-state rules remain authoritative in this repository—not in generated prose.
 
-## Complete production stack
+## 17. License
 
-The web application, REST API, MCP server, SQLite database, migrations, seed data, and
-persistent artifact storage can be started together:
-
-```powershell
-docker compose up --build -d
-```
-
-Open `http://localhost:8080`. Set `IMMUNOGRAPH_PORT` to publish a different port.
-The API container applies migrations before startup, seed operations are idempotent, and
-SQLite plus generated artifacts are retained in the `immunograph-data` volume.
-
-For an offline deployment, keep `IEDB_LIVE_ENABLED=false`, `MHCFLURRY_ENABLED=false`, and
-`DEMO_MODE=true`. Enable live connectors only after their runtime and scientific-data
-governance requirements have been verified.
-
-The initial cloud deployment should keep `MHCFLURRY_ENABLED=false` unless the
-runtime has Python, the MHCflurry CLI, and downloaded models installed. IEDB is
-the primary live cloud connector because it only requires outbound HTTPS.
-Population coverage uses IEDB's official standalone Python package because the
-stable Tools API does not publish it as a normal REST endpoint. The MCP Docker
-image installs that package under `/opt/iedb`; local development can install it
-with `npm run connectors:install:iedb-population`.
-
-## Technology baseline
-
-- Frontend: React, Vite, TypeScript, Tailwind CSS, shadcn/ui
-- Charts and graphs: Recharts, React Flow
-- API: Fastify, TypeScript, Zod, Pino
-- MCP: NitroStack
-- Persistence: SQLite, Prisma
-- Package manager: npm workspaces
-- Tests: Vitest
-
-Dependency versions are pinned by the future lockfile. The implementation must verify current NitroStack APIs against the official documentation before scaffolding.
-
-## Planned repository layout
-
-```text
-apps/
-  web/                 React/Vite researcher workspace
-  api/                 Fastify REST API and application services
-  mcp/                 One NitroStack HTTP server with four logical tool groups
-packages/
-  shared/              REST schemas and shared types
-  algorithms/          Pure deterministic scientific algorithms
-  database/            Prisma schema, repositories, profiles, fixtures, references
-data/
-  fixtures/            Curated deterministic demo cases
-  reference/           Amino-acid, allele, and constraint reference data
-  schemas/             Dataset schemas
-docs/                  Generated diagrams and future operational guides
-```
-
-
-
-
-
-## Authoritative sources
-
-- [NitroStack documentation](https://docs.nitrostack.ai/)
-- [IEDB Tools API](https://tools.iedb.org/main/tools-api/)
-- [IEDB Population Coverage standalone package](https://tools.iedb.org/population/download/)
-- [MHCflurry documentation](https://openvax.github.io/mhcflurry/)
-- [GraphBepi publication and implementation reference](https://pubmed.ncbi.nlm.nih.gov/37039829/)
-
-Scientific connectors must record the actual method, version, parameters, source URL or executable identity, and execution status used for each result.
+Released under the [MIT License](LICENSE). Scientific tools, datasets, and external services retain their own terms and licenses.

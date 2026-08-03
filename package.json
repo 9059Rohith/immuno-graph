@@ -38,6 +38,7 @@
     "test:e2e:install": "playwright install chromium",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "docs:check": "node scripts/check-docs.mjs",
     "connectors:check:iedb": "node scripts/check-iedb.mjs",
     "connectors:install:iedb-population": "node scripts/install-iedb-population.mjs",
     "connectors:check:iedb-population": "node scripts/check-iedb-population.mjs",
