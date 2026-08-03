@@ -27,16 +27,12 @@ services:
   - type: web
     name: immunograph-api
     runtime: docker
-    plan: starter
+    plan: free
     region: singapore
     dockerfilePath: ./Dockerfile.api
     dockerContext: .
     healthCheckPath: /health/ready
     autoDeployTrigger: commit
-    disk:
-      name: immunograph-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: 'production'
@@ -49,9 +45,9 @@ services:
       - key: API_LOG_LEVEL
         value: 'info'
       - key: DATABASE_URL
-        value: 'file:/data/immunograph.db'
+        value: 'file:/tmp/immunograph.db'
       - key: ARTIFACT_ROOT
-        value: '/data/artifacts'
+        value: '/tmp/immunograph-artifacts'
       - key: DEMO_MODE
         value: 'true'
       - key: LLM_ENABLED

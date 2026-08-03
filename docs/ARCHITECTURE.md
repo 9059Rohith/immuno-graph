@@ -13,7 +13,7 @@ Scientific connector failure is expected and modeled. It must not become silent 
 
 ### Public hackathon topology
 
-The release profile deploys the React/Vite client to Vercel and two Render services: a Fastify API with a persistent `/data` disk, and a stateless MCP server. `VITE_API_BASE_URL` selects the API; exact `CORS_ORIGINS` restrict browser origins; `MCP_SERVER_URL` uses Render private networking. Judge Mode sends no credentials and stores only its opaque project ID, run ID, and expiry in `sessionStorage`. See [deployment instructions](DEPLOYMENT.md).
+The free hackathon profile deploys the React/Vite client to Vercel and two Render services: a Fastify API with disposable `/tmp` demo storage, and a stateless MCP server. `VITE_API_BASE_URL` selects the API; exact `CORS_ORIGINS` restrict browser origins; `MCP_SERVER_URL` selects the MCP endpoint. Judge Mode sends no credentials and stores only its opaque project ID, run ID, and expiry in `sessionStorage`. See [deployment instructions](DEPLOYMENT.md).
 
 ## 2. System context
 

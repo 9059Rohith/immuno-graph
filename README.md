@@ -60,7 +60,7 @@ flowchart LR
     J[Judge / Researcher] --> W[React + Vite on Vercel]
     W -->|HTTPS + strict Zod contracts| A[Fastify API on Render]
     A -->|Streamable HTTP MCP| M[MCP service on Render]
-    A --> D[(Prisma + SQLite persistent disk)]
+    A --> D[(Prisma + disposable demo SQLite)]
     A --> R[Content-addressed artifacts]
     M --> P[Prediction tools]
     M --> E[Evidence tools]
@@ -114,7 +114,7 @@ Codex did not manufacture deployment links, scientific accuracy, wet-lab validat
 
 ## 11. Verified test and build results
 
-The release gate now passes **338 Vitest tests across 81 files** and **11 Playwright tests** across authenticated, credential-free, desktop, and Pixel 7 profiles. Exact coverage, build, audit, container, and browser evidence is recorded—not estimated—in the [release verification ledger](docs/superpowers/verification/2026-08-03-hackathon-release.md).
+The release gate now passes **339 Vitest tests across 81 files** and **11 Playwright tests** across authenticated, credential-free, desktop, and Pixel 7 profiles. Exact coverage, build, audit, container, and browser evidence is recorded—not estimated—in the [release verification ledger](docs/superpowers/verification/2026-08-03-hackathon-release.md).
 
 The required release gate is:
 
@@ -156,14 +156,16 @@ npm run demo:cleanup
 
 ## 13. Vercel and Render deployment
 
-The committed [Vercel configuration](vercel.json) builds the Vite workspace and rewrites SPA routes. The committed [Render Blueprint](render.yaml) provisions the API, MCP service, and an API persistent disk.
+The committed [Vercel configuration](vercel.json) builds the Vite workspace and rewrites SPA routes. The committed [Render Blueprint](render.yaml) provisions the API and MCP service on Render's Free plan for the hackathon demo.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/9059Rohith/immuno-graph)
 
 Required values after the first deploy:
 
 - Vercel: `VITE_API_BASE_URL=https://<api-service>.onrender.com/api/v1`
 - Render API: `CORS_ORIGINS=https://<web-project>.vercel.app`
-- Render API: `MCP_SERVER_URL=http://<mcp-service>:3001/mcp`
-- Render API disk: `DATABASE_URL=file:/data/immunograph.db`, `ARTIFACT_ROOT=/data/artifacts`
+- Render API: `MCP_SERVER_URL=https://<mcp-service>.onrender.com/mcp`
+- Render API demo storage: `DATABASE_URL=file:/tmp/immunograph.db`, `ARTIFACT_ROOT=/tmp/immunograph-artifacts`
 
 Use the exact steps and health probes in [the deployment guide](docs/DEPLOYMENT.md). Do not Final Submit until the deployed commit, public repository, video, and Google Doc all match.
 

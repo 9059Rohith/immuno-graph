@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateApiDockerfile, validateMcpDockerfile } from './deployment-contract.mjs';
+import {
+  validateApiDockerfile,
+  validateFreeRenderBlueprint,
+  validateMcpDockerfile,
+} from './deployment-contract.mjs';
 
 describe('deployment contract', () => {
   it('rejects an API runtime whose curl health probe has no curl binary', () => {
@@ -32,6 +36,24 @@ ENV IEDB_LIVE_ENABLED=false
 
     expect(issues).toContain(
       'MCP runtime must not download optional scientific tools during the public-demo build',
+    );
+  });
+
+  it('rejects a Render Blueprint that requires a paid service or persistent disk', () => {
+    const issues = validateFreeRenderBlueprint(`
+services:
+  - type: web
+    name: immunograph-api
+    runtime: docker
+    plan: starter
+    disk:
+      name: immunograph-data
+      mountPath: /data
+      sizeGB: 1
+`);
+
+    expect(issues).toContain(
+      'Free Render Blueprint must use free services without persistent disks',
     );
   });
 });

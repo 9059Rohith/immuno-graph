@@ -1,15 +1,15 @@
 # ImmunoGraph deployment runbook
 
-ImmunoGraph deploys as a Vite SPA on Vercel, a stateful Fastify API on Render, and a separate stateless MCP service on Render. The public judge path uses deterministic synthetic fixtures and requires no credentials.
+ImmunoGraph deploys as a Vite SPA on Vercel, a Fastify API on Render, and a separate stateless MCP service on Render. The public judge path uses deterministic synthetic fixtures and requires no credentials.
 
 ## Prerequisites
 
 - A public GitHub repository containing the commit being judged.
-- A Render account that can create a Starter web service and a 1 GB persistent disk.
+- A Render account; the committed hackathon Blueprint uses two Free web services.
 - A Vercel account linked to the same repository.
 - Node 20 and npm 10 for local verification.
 
-Render persistent disks are available only on paid services and disable zero-downtime deploys. The API is deliberately pinned to one Starter instance because SQLite and generated artifacts live under `/data`. See [Render persistent disks](https://render.com/docs/disks) and the [Blueprint specification](https://render.com/docs/blueprint-spec).
+The Free profile stores SQLite and generated artifacts under `/tmp`, so they can reset whenever Render restarts, spins down, or redeploys the API. This is appropriate for the disposable credential-free judge demo, not durable research data. For persistence after the hackathon, upgrade the API to Starter, attach a 1 GB disk at `/data`, and change the two storage variables to the paid values documented below. See [Render persistent disks](https://render.com/docs/disks) and the [Blueprint specification](https://render.com/docs/blueprint-spec).
 
 ## 1. Verify the release locally
 
@@ -32,7 +32,9 @@ Commit and push the exact verified revision before creating the services.
 4. Wait for `immunograph-mcp` to return HTTP 200 from `/health`.
 5. Redeploy `immunograph-api` after setting the final MCP URL, then verify `/health/live` and `/health/ready` both return HTTP 200.
 
-The API container runs Prisma migrations during startup and stores its SQLite database and artifacts on `/data`. The MCP service is stateless and its public-demo image deliberately avoids downloading optional scientific tools during the image build. The judged fixture path therefore remains deterministic and deployable even when third-party scientific services are unavailable.
+The API container creates the temporary SQLite file and runs Prisma migrations during startup. The MCP service is stateless and its public-demo image deliberately avoids downloading optional scientific tools during the image build. The judged fixture path therefore remains deterministic and deployable even when third-party scientific services are unavailable.
+
+Both Free services sleep after inactivity, so wake the MCP and API health URLs several minutes before judging. Upgrade one or both services if you need to eliminate cold starts.
 
 ## 3. Deploy the Vercel SPA
 
@@ -63,8 +65,10 @@ Run these checks in a private browser window:
 | Vercel | `VITE_API_BASE_URL` | Render API HTTPS URL ending in `/api/v1` |
 | Render API | `CORS_ORIGINS` | Exact Vercel origin(s), comma-separated, no paths or trailing slash |
 | Render API | `MCP_SERVER_URL` | Render MCP HTTPS URL ending in `/mcp` |
-| Render API | `DATABASE_URL` | `file:/data/immunograph.db` |
-| Render API | `ARTIFACT_ROOT` | `/data/artifacts` |
+| Render API | `DATABASE_URL` | `file:/tmp/immunograph.db` |
+| Render API | `ARTIFACT_ROOT` | `/tmp/immunograph-artifacts` |
+
+Paid persistence upgrade values: `DATABASE_URL=file:/data/immunograph.db` and `ARTIFACT_ROOT=/data/artifacts`, with a persistent disk mounted at `/data`.
 
 Do not place secrets in `VITE_*` variables; Vite embeds them in the browser bundle.
 

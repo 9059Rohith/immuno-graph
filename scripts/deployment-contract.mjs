@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 const API_CURL_ISSUE = 'API runtime health probe requires curl to be installed';
 const MCP_DOWNLOAD_ISSUE =
   'MCP runtime must not download optional scientific tools during the public-demo build';
+const FREE_RENDER_ISSUE = 'Free Render Blueprint must use free services without persistent disks';
 
 function runtimeStage(dockerfile) {
   const start = dockerfile.search(/^FROM\s+\S+\s+AS\s+runtime\s*$/im);
@@ -31,12 +32,27 @@ export function validateMcpDockerfile(dockerfile) {
   return downloadsRemoteTool ? [MCP_DOWNLOAD_ISSUE] : [];
 }
 
+export function validateFreeRenderBlueprint(blueprint) {
+  const plans = [...blueprint.matchAll(/^\s+plan:\s*['"]?([^'"\s#]+)['"]?/gim)].map(([, plan]) =>
+    plan.toLowerCase(),
+  );
+  const requiresPaidService = plans.some((plan) => plan !== 'free');
+  const attachesPersistentDisk = /^\s{4}disk:\s*(?:#.*)?$/im.test(blueprint);
+
+  return requiresPaidService || attachesPersistentDisk ? [FREE_RENDER_ISSUE] : [];
+}
+
 export async function checkDeploymentFiles(rootDirectory) {
-  const [apiDockerfile, mcpDockerfile] = await Promise.all([
+  const [apiDockerfile, mcpDockerfile, renderBlueprint] = await Promise.all([
     readFile(new URL('Dockerfile.api', rootDirectory), 'utf8'),
     readFile(new URL('Dockerfile.mcp', rootDirectory), 'utf8'),
+    readFile(new URL('render.yaml', rootDirectory), 'utf8'),
   ]);
-  return [...validateApiDockerfile(apiDockerfile), ...validateMcpDockerfile(mcpDockerfile)];
+  return [
+    ...validateApiDockerfile(apiDockerfile),
+    ...validateMcpDockerfile(mcpDockerfile),
+    ...validateFreeRenderBlueprint(renderBlueprint),
+  ];
 }
 
 const invokedPath = process.argv[1];
