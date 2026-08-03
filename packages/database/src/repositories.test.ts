@@ -78,6 +78,30 @@ describe('database repositories', () => {
     await expect(repositories.proteins.findCurrentByProject(project.id)).resolves.toEqual(protein);
   });
 
+  it('deletes only demo projects whose retention window has expired', async () => {
+    const now = new Date('2026-08-03T12:00:00.000Z');
+    const expiredDemo = await repositories.projects.create({
+      name: 'Expired judge demo',
+      isDemo: true,
+      demoExpiresAt: new Date('2026-08-03T11:59:59.000Z'),
+    });
+    const activeDemo = await repositories.projects.create({
+      name: 'Active judge demo',
+      isDemo: true,
+      demoExpiresAt: new Date('2026-08-04T12:00:00.000Z'),
+    });
+    const researchProject = await repositories.projects.create({
+      name: 'Persistent research project',
+      isDemo: false,
+      demoExpiresAt: new Date('2026-08-03T11:59:59.000Z'),
+    });
+
+    await expect(repositories.projects.deleteExpiredDemoProjects(now)).resolves.toBe(1);
+    await expect(repositories.projects.findById(expiredDemo.id)).resolves.toBeNull();
+    await expect(repositories.projects.findById(activeDemo.id)).resolves.not.toBeNull();
+    await expect(repositories.projects.findById(researchProject.id)).resolves.not.toBeNull();
+  });
+
   it('pages projects, counts the complete workspace, and allocates revisions', async () => {
     await repositories.projects.create({ name: 'Second paged project' });
     const page = await repositories.projects.listPage({ limit: 1 });

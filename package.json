@@ -45,7 +45,8 @@
     "connectors:check:mhcflurry": "node scripts/check-mhcflurry.mjs",
     "db:generate": "npm run db:generate --workspace @immunograph/database",
     "db:migrate": "npm run db:migrate --workspace @immunograph/database",
-    "db:seed": "npm run db:seed --workspace @immunograph/database"
+    "db:seed": "npm run db:seed --workspace @immunograph/database",
+    "demo:cleanup": "tsx scripts/demo-cleanup.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

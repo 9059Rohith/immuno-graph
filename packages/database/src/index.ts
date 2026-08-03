@@ -2,6 +2,7 @@ export { PrismaClient } from '@prisma/client';
 
 export { createDatabaseClient, initializeDatabase } from './client.js';
 export type { DatabaseClient } from './client.js';
+export * from './demo-cleanup.js';
 export * from './fixture-loader.js';
 export * from './fixture-validation.js';
 export * from './profile-loader.js';

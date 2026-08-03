@@ -139,6 +139,7 @@ export interface IProjectRepository extends CreateRepository<Project, ProjectCre
   updateMetadata(id: string, input: ProjectUpdate): Promise<Project>;
   listPage(input: ProjectPageQuery): Promise<ProjectPageRecord>;
   countAll(): Promise<number>;
+  deleteExpiredDemoProjects(before: Date): Promise<number>;
   deleteTree(projectId: string): Promise<void>;
 }
 
@@ -191,6 +192,15 @@ export class ProjectRepository implements IProjectRepository {
 
   countAll(): Promise<number> {
     return this.client.project.count();
+  }
+
+  async deleteExpiredDemoProjects(before: Date): Promise<number> {
+    const expiredProjects = await this.client.project.findMany({
+      select: { id: true },
+      where: { isDemo: true, demoExpiresAt: { lte: before } },
+    });
+    for (const project of expiredProjects) await this.deleteTree(project.id);
+    return expiredProjects.length;
   }
 
   async deleteTree(projectId: string): Promise<void> {

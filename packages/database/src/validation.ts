@@ -100,12 +100,14 @@ export const projectCreateSchema = z
     organism: z.string().trim().min(1).max(200).optional(),
     proteinName: z.string().trim().min(1).max(200).optional(),
     description: z.string().trim().min(1).max(2_000).optional(),
+    isDemo: z.boolean().optional(),
+    demoExpiresAt: z.date().nullable().optional(),
     createdAt: z.date().optional(),
   })
   .strict();
 
 export const projectUpdateSchema = projectCreateSchema
-  .omit({ id: true, createdAt: true })
+  .omit({ id: true, isDemo: true, demoExpiresAt: true, createdAt: true })
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'at least one metadata field is required');
 

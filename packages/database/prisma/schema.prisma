@@ -67,18 +67,21 @@ model DockingJob {
 }
 
 model Project {
-  id          String   @id @default(uuid())
-  name        String
-  organism    String?
-  proteinName String?
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String    @id @default(uuid())
+  name          String
+  organism      String?
+  proteinName   String?
+  description   String?
+  isDemo        Boolean   @default(false)
+  demoExpiresAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   proteinInputs ProteinInput[]
   workflowRuns  WorkflowRun[]
 
   @@index([createdAt])
+  @@index([isDemo, demoExpiresAt])
 }
 
 model ProteinInput {
