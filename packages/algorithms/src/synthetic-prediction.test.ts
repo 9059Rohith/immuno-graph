@@ -39,6 +39,10 @@ describe('predictSyntheticBinding', () => {
       expect(observation.normalizedScore).toBeCloseTo(1 - observation.percentileRank / 100, 12);
       expect(observation.observationId).toMatch(/^[a-f0-9]{64}$/);
       expect(observation.candidateRef).toMatch(/^[a-f0-9]{64}$/);
+      expect(observation.modelScores.ensembleScore).toBeCloseTo(
+        0.45 * observation.modelScores.mlScore + 0.55 * observation.modelScores.dlScore,
+        6,
+      );
     }
   });
 

@@ -100,7 +100,7 @@ export const useShortlistOptimization = (
     queryFn: () =>
       apiRequest(
         `/runs/${id}/shortlist-optimization?track=${track}`,
-        shortlistOptimizationSchema,
+        shortlistOptimizationSchema.nullable(),
       ),
     enabled: id !== '' && (options?.enabled ?? true),
     retry: false,

@@ -8,6 +8,7 @@ export * from './evidence.js';
 export * from './explanation.js';
 export * from './fasta.js';
 export * from './normalization.js';
+export * from './model-predictors.js';
 export * from './overlap.js';
 export * from './peptides.js';
 export * from './ranking.js';

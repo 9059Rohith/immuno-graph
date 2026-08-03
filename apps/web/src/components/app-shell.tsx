@@ -33,6 +33,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { apiRequest } from '@/lib/api-client';
 import { useProject, useRun } from '@/features/data-hooks';
@@ -177,6 +178,7 @@ function ApiConnectionStatus() {
 
 type NavigationItem = { label: string; to: string; icon: typeof LayoutDashboard };
 function NavGroup({ label, items }: { label: string; items: NavigationItem[] }) {
+  const { setOpenMobile } = useSidebar();
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
@@ -185,7 +187,7 @@ function NavGroup({ label, items }: { label: string; items: NavigationItem[] }) 
           {items.map(({ label: itemLabel, to, icon: Icon }) => (
             <SidebarMenuItem key={itemLabel}>
               <SidebarMenuButton asChild tooltip={itemLabel}>
-                <NavLink end={to === '/'} to={to}>
+                <NavLink end={to === '/'} to={to} onClick={() => setOpenMobile(false)}>
                   <Icon aria-hidden="true" />
                   <span>{itemLabel}</span>
                 </NavLink>

@@ -1,4 +1,5 @@
 import { canonicalJsonSha256 } from './canonical-json.js';
+import { predictBindingModels, type BindingModelScores } from './model-predictors.js';
 import type { GeneratedPeptide } from './peptides.js';
 
 export const SYNTHETIC_BINDING_ALGORITHM = 'DeterministicSyntheticBindingPredictor';
@@ -28,6 +29,7 @@ export interface SyntheticBindingObservation {
   rawScore: number;
   percentileRank: number;
   normalizedScore: number;
+  modelScores: BindingModelScores;
 }
 
 const unitSeed = (hash: string): number =>
@@ -67,6 +69,11 @@ export function predictSyntheticBinding(
         algorithmVersion: SYNTHETIC_BINDING_ALGORITHM_VERSION,
       });
       const candidateRef = canonicalJsonSha256(identity);
+      const modelScores = predictBindingModels({
+        peptide: candidate.peptide,
+        allele,
+        candidateType: input.candidateType,
+      });
       observations.push({
         observationId: canonicalJsonSha256({ candidateRef, seed }),
         candidateRef,
@@ -78,7 +85,8 @@ export function predictSyntheticBinding(
         allele,
         method: input.method,
         methodVersion: input.methodVersion,
-        rawScore: round(unitSeed(seed)),
+        rawScore: round(0.97 * modelScores.ensembleScore + 0.03 * unitSeed(seed)),
+        modelScores,
         seed,
       });
     }

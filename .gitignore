@@ -22,4 +22,5 @@ apps/web/.vite/
 .tmp-dev-logs/
 playwright-report/
 test-results/
+tests/.auth/
 nitrocloud-smoke*.log

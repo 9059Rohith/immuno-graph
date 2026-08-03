@@ -60,6 +60,7 @@ describe('CandidateService', () => {
     const repositories = {
       runs: { findById: async () => ({ id: runId }) },
       populationCoverageResults: { findMatch: async () => null },
+      shortlistOptimizationResults: { findLatest: async () => null },
     };
     const service = new CandidateService(repositories as never);
     await expect(
@@ -71,5 +72,6 @@ describe('CandidateService', () => {
       code: 'INVALID_COVERAGE_TRACK',
       statusCode: 422,
     });
+    await expect(service.shortlistOptimization({ runId, track: 'MHCI' })).resolves.toBeNull();
   });
 });

@@ -310,6 +310,14 @@ export const predictSyntheticBindingContract = defineContract({
         rawScore: unitIntervalSchema,
         percentileRank: z.number().finite().min(0).max(100),
         normalizedScore: unitIntervalSchema,
+        modelScores: z
+          .object({
+            mlScore: unitIntervalSchema,
+            dlScore: unitIntervalSchema,
+            ensembleScore: unitIntervalSchema,
+            uncertainty: unitIntervalSchema,
+          })
+          .optional(),
         rawFields: jsonRecord,
       }),
     ),

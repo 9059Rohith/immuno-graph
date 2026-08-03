@@ -60,6 +60,15 @@ GraphBepi is deliberately fixture-only in the MVP. The system never attempts a l
 
 MHCflurry is supported as an optional local MHC-I connector. It is disabled by default and only reports `LIVE` after the MHCflurry CLI and prediction models are installed in the runtime and `MHCFLURRY_ENABLED=true` is set.
 
+The offline hackathon path includes a fast, dependency-free deterministic
+dual-head demonstration scorer. Its fixed, versioned coefficients operate on
+an 18-feature peptide/HLA representation and produce an explicit disagreement
+signal. The repository contains no training dataset or validation experiment,
+so these values are not presented as trained ML/DL predictions or as evidence
+of biological accuracy. They are always labeled `SYNTHETIC`, carry
+`scientificUse=false`, and exist only to make offline software behavior
+reproducible.
+
 For local development, install and verify MHCflurry with:
 
 ```bash

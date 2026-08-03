@@ -153,8 +153,7 @@ export class CandidateService {
       input.runId,
       input.track,
     );
-    if (record === null) throw resourceNotFound('shortlist optimization');
-    return mapShortlistOptimization(record);
+    return record === null ? null : mapShortlistOptimization(record);
   }
 
   private async requireRun(runId: string): Promise<void> {

@@ -63,6 +63,14 @@ export const syntheticBindingDataSchema = z.object({
       rawScore: unit,
       percentileRank: z.number().finite().min(0).max(100),
       normalizedScore: unit,
+      modelScores: z
+        .object({
+          mlScore: unit,
+          dlScore: unit,
+          ensembleScore: unit,
+          uncertainty: unit,
+        })
+        .optional(),
       rawFields: z.record(z.unknown()),
     }),
   ),

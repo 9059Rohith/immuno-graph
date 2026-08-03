@@ -64,6 +64,7 @@ import {
 import { candidateListParams } from './candidate-query';
 import { createRunConfigurationInput, createShortlistApprovalInput } from './workflow-actions';
 import { GraphCanvas } from './graph-canvas';
+import { useJudgeMode } from './judge-mode';
 import { sequenceSegmentGeometry } from './sequence-geometry';
 
 const id = (value: string | undefined) => value ?? '';
@@ -438,10 +439,22 @@ export function ProjectPage() {
 
 export function ProjectSettingsPage() {
   const projectId = id(useParams().projectId);
+  const judge = useJudgeMode();
+  const judgeRunId = judge.workspace?.projectId === projectId ? judge.workspace.runId : '';
+  const judgeRun = useRun(judgeRunId);
   const createRun = useCreateRun(projectId);
-  const approve = useApproveConfiguration(createRun.data?.id ?? '');
+  const configurationRun = createRun.data ?? judgeRun.data;
+  const approve = useApproveConfiguration(configurationRun?.id ?? '');
   const [approvalNote, setApprovalNote] = useState('');
   const navigate = useNavigate();
+  const curatedDraft =
+    judgeRunId !== '' &&
+    (judgeRun.data?.status === 'DRAFT' ||
+      judgeRun.data?.status === 'AWAITING_CONFIGURATION_APPROVAL');
+  if (judgeRunId !== '' && judgeRun.isLoading)
+    return <LoadingState label="Loading curated Judge Mode configuration" />;
+  if (judgeRunId !== '' && judgeRun.isError)
+    return <ErrorState message={judgeRun.error.message} onRetry={() => void judgeRun.refetch()} />;
   return (
     <>
       {heading('Project Settings', 'Configure a new immutable run revision for this project.')}
@@ -452,172 +465,184 @@ export function ProjectSettingsPage() {
           B-cell analysis uses an approved deterministic fixture and always displays its provenance.
         </AlertDescription>
       </Alert>
-      <form
-        className="grid gap-4 lg:grid-cols-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const values = new FormData(event.currentTarget);
-          createRun.mutate(
-            createRunConfigurationInput({
-              mhciAlleles: String(values.get('mhciAlleles')),
-              mhciLengths: String(values.get('mhciLengths')),
-              mhciiAlleles: String(values.get('mhciiAlleles')),
-              mhciiLengths: String(values.get('mhciiLengths')),
-              populations: String(values.get('populations')),
-              enableMhcflurry: values.get('enableMhcflurry') === 'on',
-              enableBcell: values.get('enableBcell') === 'on',
-              fallbackPolicy: String(values.get('fallbackPolicy')),
-              requestedExecutionMode: String(values.get('requestedExecutionMode')) as
-                'AUTO' | 'LIVE' | 'SYNTHETIC' | 'FIXTURE',
-              ruleProfileVersion: String(values.get('ruleProfileVersion')),
-              rankingProfileVersion: String(values.get('rankingProfileVersion')),
-            }),
-          );
-        }}
-      >
-        <ConfigurationCard title="MHC-I" description="Comma-separated alleles and lengths.">
-          <SuggestedTextField
-            id="mhci-alleles"
-            label="Alleles"
-            name="mhciAlleles"
-            suggestions={mhciAlleleSuggestions}
-            defaultValue="HLA-A*02:01"
-            helper="Pick a common allele or type another comma-separated set."
-          />
-          <SuggestedTextField
-            id="mhci-lengths"
-            label="Peptide lengths"
-            name="mhciLengths"
-            suggestions={peptideLengthSuggestions}
-            defaultValue="9, 10"
-            helper="You can type your own comma-separated lengths too."
-          />
-          <label className="flex items-start gap-2 text-sm">
-            <input name="enableMhcflurry" type="checkbox" />
-            <span>
-              Enable local MHCflurry MHC-I live predictor
-              <span className="block text-xs text-muted-foreground">
-                Requires `MHCFLURRY_ENABLED=true` and an installed `mhcflurry-predict-scan`
-                executable.
+      {curatedDraft ? (
+        <Alert className="border-primary/25 bg-primary/5">
+          <CheckCircle2 aria-hidden="true" />
+          <AlertTitle>Curated Judge Mode configuration</AlertTitle>
+          <AlertDescription>
+            The validated dengue fixture draft is ready. Review its immutable configuration hash
+            below, then approve it to start the evidence workflow—no duplicate revision is created.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {curatedDraft ? null : (
+        <form
+          className="grid gap-4 lg:grid-cols-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const values = new FormData(event.currentTarget);
+            createRun.mutate(
+              createRunConfigurationInput({
+                mhciAlleles: String(values.get('mhciAlleles')),
+                mhciLengths: String(values.get('mhciLengths')),
+                mhciiAlleles: String(values.get('mhciiAlleles')),
+                mhciiLengths: String(values.get('mhciiLengths')),
+                populations: String(values.get('populations')),
+                enableMhcflurry: values.get('enableMhcflurry') === 'on',
+                enableBcell: values.get('enableBcell') === 'on',
+                fallbackPolicy: String(values.get('fallbackPolicy')),
+                requestedExecutionMode: String(values.get('requestedExecutionMode')) as
+                  'AUTO' | 'LIVE' | 'SYNTHETIC' | 'FIXTURE',
+                ruleProfileVersion: String(values.get('ruleProfileVersion')),
+                rankingProfileVersion: String(values.get('rankingProfileVersion')),
+              }),
+            );
+          }}
+        >
+          <ConfigurationCard title="MHC-I" description="Comma-separated alleles and lengths.">
+            <SuggestedTextField
+              id="mhci-alleles"
+              label="Alleles"
+              name="mhciAlleles"
+              suggestions={mhciAlleleSuggestions}
+              defaultValue="HLA-A*02:01"
+              helper="Pick a common allele or type another comma-separated set."
+            />
+            <SuggestedTextField
+              id="mhci-lengths"
+              label="Peptide lengths"
+              name="mhciLengths"
+              suggestions={peptideLengthSuggestions}
+              defaultValue="9, 10"
+              helper="You can type your own comma-separated lengths too."
+            />
+            <label className="flex items-start gap-2 text-sm">
+              <input name="enableMhcflurry" type="checkbox" />
+              <span>
+                Enable local MHCflurry MHC-I live predictor
+                <span className="block text-xs text-muted-foreground">
+                  Requires `MHCFLURRY_ENABLED=true` and an installed `mhcflurry-predict-scan`
+                  executable.
+                </span>
               </span>
-            </span>
-          </label>
-        </ConfigurationCard>
-        <ConfigurationCard title="MHC-II" description="Comma-separated alleles and lengths.">
-          <SuggestedTextField
-            id="mhcii-alleles"
-            label="Alleles"
-            name="mhciiAlleles"
-            suggestions={mhciiAlleleSuggestions}
-            defaultValue="HLA-DRB1*04:01"
-            helper="Choose a known allele or type a custom comma-separated list."
-          />
-          <SuggestedTextField
-            id="mhcii-lengths"
-            label="Peptide lengths"
-            name="mhciiLengths"
-            suggestions={peptideLengthSuggestions}
-            defaultValue="15"
-            helper="MHC-II often uses longer peptides; custom values are allowed."
-          />
-        </ConfigurationCard>
-        <ConfigurationCard title="Population coverage" description="Coverage populations.">
-          <SuggestedTextField
-            id="populations"
-            label="Population IDs"
-            name="populations"
-            suggestions={populationSuggestions}
-            defaultValue="synthetic-population-alpha, synthetic-population-beta"
-            helper="Type one or more IDs separated by commas, or enter your own research population IDs."
-          />
-        </ConfigurationCard>
-        <ConfigurationCard
-          title="Profiles and constraints"
-          description="Immutable file-backed profiles; definitions are not stored in SQLite."
-        >
-          <SuggestedTextField
-            id="rule-profile"
-            label="Rule profile version"
-            name="ruleProfileVersion"
-            suggestions={versionSuggestions}
-            defaultValue="mvp-v1.0"
-            helper="Use the approved profile version, or type another registered version."
-          />
-          <SuggestedTextField
-            id="ranking-profile"
-            label="Ranking profile version"
-            name="rankingProfileVersion"
-            suggestions={versionSuggestions}
-            defaultValue="mvp-v1.0"
-            helper="Use the default ranking profile or enter a different version string."
-          />
-        </ConfigurationCard>
-        <ConfigurationCard title="Execution policy" description="Live, cache, and fixture order.">
-          <Field>
-            <FieldLabel htmlFor="execution-mode">Requested execution mode</FieldLabel>
-            <select
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-              defaultValue="AUTO"
-              id="execution-mode"
-              name="requestedExecutionMode"
-            >
-              <option value="AUTO">Auto — live first, controlled fallback</option>
-              <option value="LIVE">Live scientific predictors only</option>
-              <option value="SYNTHETIC">Offline synthetic demonstration only</option>
-              <option value="FIXTURE">Exact approved fixture replay only</option>
-            </select>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="fallback-policy">Fallback policy</FieldLabel>
-            <select
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-              defaultValue="CACHE_THEN_LIVE_THEN_FIXTURE"
-              id="fallback-policy"
-              name="fallbackPolicy"
-            >
-              <option value="CACHE_THEN_LIVE_THEN_FIXTURE">Cache → live → fixture</option>
-              <option value="LIVE_THEN_CACHE_THEN_FIXTURE">Live → cache → fixture</option>
-              <option value="FIXTURE_ONLY">Fixture only</option>
-            </select>
-          </Field>
-          <label className="flex items-center gap-2 text-sm">
-            <input name="enableBcell" type="checkbox" />
-            Enable B-cell GraphBepi fixture track
-          </label>
-        </ConfigurationCard>
-        <ConfigurationCard
-          title="Output preferences"
-          description="Frozen reproducibility package for MVP v1.0."
-        >
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">JSON</Badge>
-            <Badge variant="outline">CSV</Badge>
-            <Badge variant="outline">Evidence graph</Badge>
-            <Badge variant="outline">Workflow trace</Badge>
+            </label>
+          </ConfigurationCard>
+          <ConfigurationCard title="MHC-II" description="Comma-separated alleles and lengths.">
+            <SuggestedTextField
+              id="mhcii-alleles"
+              label="Alleles"
+              name="mhciiAlleles"
+              suggestions={mhciiAlleleSuggestions}
+              defaultValue="HLA-DRB1*04:01"
+              helper="Choose a known allele or type a custom comma-separated list."
+            />
+            <SuggestedTextField
+              id="mhcii-lengths"
+              label="Peptide lengths"
+              name="mhciiLengths"
+              suggestions={peptideLengthSuggestions}
+              defaultValue="15"
+              helper="MHC-II often uses longer peptides; custom values are allowed."
+            />
+          </ConfigurationCard>
+          <ConfigurationCard title="Population coverage" description="Coverage populations.">
+            <SuggestedTextField
+              id="populations"
+              label="Population IDs"
+              name="populations"
+              suggestions={populationSuggestions}
+              defaultValue="synthetic-population-alpha, synthetic-population-beta"
+              helper="Type one or more IDs separated by commas, or enter your own research population IDs."
+            />
+          </ConfigurationCard>
+          <ConfigurationCard
+            title="Profiles and constraints"
+            description="Immutable file-backed profiles; definitions are not stored in SQLite."
+          >
+            <SuggestedTextField
+              id="rule-profile"
+              label="Rule profile version"
+              name="ruleProfileVersion"
+              suggestions={versionSuggestions}
+              defaultValue="mvp-v1.0"
+              helper="Use the approved profile version, or type another registered version."
+            />
+            <SuggestedTextField
+              id="ranking-profile"
+              label="Ranking profile version"
+              name="rankingProfileVersion"
+              suggestions={versionSuggestions}
+              defaultValue="mvp-v1.0"
+              helper="Use the default ranking profile or enter a different version string."
+            />
+          </ConfigurationCard>
+          <ConfigurationCard title="Execution policy" description="Live, cache, and fixture order.">
+            <Field>
+              <FieldLabel htmlFor="execution-mode">Requested execution mode</FieldLabel>
+              <select
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+                defaultValue="AUTO"
+                id="execution-mode"
+                name="requestedExecutionMode"
+              >
+                <option value="AUTO">Auto — live first, controlled fallback</option>
+                <option value="LIVE">Live scientific predictors only</option>
+                <option value="SYNTHETIC">Offline synthetic demonstration only</option>
+                <option value="FIXTURE">Exact approved fixture replay only</option>
+              </select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="fallback-policy">Fallback policy</FieldLabel>
+              <select
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+                defaultValue="CACHE_THEN_LIVE_THEN_FIXTURE"
+                id="fallback-policy"
+                name="fallbackPolicy"
+              >
+                <option value="CACHE_THEN_LIVE_THEN_FIXTURE">Cache → live → fixture</option>
+                <option value="LIVE_THEN_CACHE_THEN_FIXTURE">Live → cache → fixture</option>
+                <option value="FIXTURE_ONLY">Fixture only</option>
+              </select>
+            </Field>
+            <label className="flex items-center gap-2 text-sm">
+              <input name="enableBcell" type="checkbox" />
+              Enable B-cell GraphBepi fixture track
+            </label>
+          </ConfigurationCard>
+          <ConfigurationCard
+            title="Output preferences"
+            description="Frozen reproducibility package for MVP v1.0."
+          >
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">JSON</Badge>
+              <Badge variant="outline">CSV</Badge>
+              <Badge variant="outline">Evidence graph</Badge>
+              <Badge variant="outline">Workflow trace</Badge>
+            </div>
+          </ConfigurationCard>
+          {createRun.isError ? (
+            <Alert className="lg:col-span-2" variant="destructive">
+              <AlertTitle>Draft could not be created</AlertTitle>
+              <AlertDescription>{createRun.error.message}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="flex justify-between gap-3 lg:col-span-2">
+            <Button asChild variant="outline">
+              <Link to={`/projects/${projectId}`}>Back to project</Link>
+            </Button>
+            <Button disabled={createRun.isPending} type="submit">
+              {createRun.isPending ? 'Creating draft…' : 'Create configuration draft'}
+            </Button>
           </div>
-        </ConfigurationCard>
-        {createRun.isError ? (
-          <Alert className="lg:col-span-2" variant="destructive">
-            <AlertTitle>Draft could not be created</AlertTitle>
-            <AlertDescription>{createRun.error.message}</AlertDescription>
-          </Alert>
-        ) : null}
-        <div className="flex justify-between gap-3 lg:col-span-2">
-          <Button asChild variant="outline">
-            <Link to={`/projects/${projectId}`}>Back to project</Link>
-          </Button>
-          <Button disabled={createRun.isPending} type="submit">
-            {createRun.isPending ? 'Creating draft…' : 'Create configuration draft'}
-          </Button>
-        </div>
-      </form>
-      {createRun.data ? (
+        </form>
+      )}
+      {configurationRun ? (
         <Card>
           <CardHeader>
             <CardTitle>Approve configuration snapshot</CardTitle>
             <CardDescription>
-              Review and approve hash {createRun.data.configurationHash.slice(0, 12)}… to make this
-              revision immutable and queue it.
+              Review and approve hash {configurationRun.configurationHash.slice(0, 12)}… to make
+              this revision immutable and queue it.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
@@ -639,7 +664,7 @@ export function ProjectSettingsPage() {
                 const note = approvalNote.trim();
                 approve.mutate(
                   {
-                    expectedConfigurationHash: createRun.data.configurationHash,
+                    expectedConfigurationHash: configurationRun.configurationHash,
                     ...(note ? { note } : {}),
                   },
                   { onSuccess: (run) => navigate(`/runs/${run.id}`) },
@@ -758,8 +783,10 @@ export function RunPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {run.connectors.map((connector) => (
-                  <TableRow key={`${connector.connectorId}-${connector.method}`}>
+                {run.connectors.map((connector, index) => (
+                  <TableRow
+                    key={`${connector.connectorId}-${connector.method}-${connector.version}-${index}`}
+                  >
                     <TableCell>{connector.connectorId}</TableCell>
                     <TableCell>{connector.method}</TableCell>
                     <TableCell>
@@ -1449,10 +1476,7 @@ function CandidateSubviews({
         </div>
         {view === 'sequence' ? (
           sequence.isError ? (
-            <ErrorState
-              message={sequence.error.message}
-              onRetry={() => void sequence.refetch()}
-            />
+            <ErrorState message={sequence.error.message} onRetry={() => void sequence.refetch()} />
           ) : (
             <SequenceMap data={sequence.data} loading={sequence.isLoading} />
           )
@@ -1461,10 +1485,7 @@ function CandidateSubviews({
           coverage.isLoading ? (
             <LoadingState label="Loading population coverage" />
           ) : coverage.isError ? (
-            <ErrorState
-              message={coverage.error.message}
-              onRetry={() => void coverage.refetch()}
-            />
+            <ErrorState message={coverage.error.message} onRetry={() => void coverage.refetch()} />
           ) : !coverage.data || coverage.data.populations.length === 0 ? (
             <EmptyState
               title="No population coverage"
@@ -1633,73 +1654,73 @@ function CandidateSubviews({
               </Alert>
             ) : (
               <>
-            <label className="flex items-center gap-2">
-              <Checkbox
-                aria-label="Acknowledge computational-only shortlist status"
-                checked={acknowledged}
-                onCheckedChange={(checked) => setAcknowledged(checked === true)}
-              />
-              I acknowledge the computational-only status.
-            </label>
-            <p className="text-sm text-muted-foreground">
-              {selectedIds.length} candidate{selectedIds.length === 1 ? '' : 's'} selected from
-              snapshot {rankingSnapshotHash.slice(0, 12)}…
-            </p>
-            {selectedCandidates.length === 0 ? (
-              <Alert>
-                <AlertTriangle aria-hidden="true" />
-                <AlertTitle>No candidates selected</AlertTitle>
-                <AlertDescription>
-                  Select one or more non-rejected candidates from the Rankings table before
-                  approving the shortlist.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <div className="rounded-md border p-3">
-                <p className="mb-2 text-sm font-medium">Selected shortlist candidates</p>
-                <ul className="grid gap-1 text-sm">
-                  {selectedCandidates.map((candidate) => (
-                    <li key={candidate.id}>
-                      #{candidate.rank} <span className="font-mono">{candidate.peptide}</span> ·{' '}
-                      {candidate.category} · score {candidate.finalScore.toFixed(3)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <Textarea
-              placeholder="Optional approval note"
-              value={approvalNote}
-              onChange={(event) => setApprovalNote(event.currentTarget.value)}
-            />
-            {approve.isError ? (
-              <Alert variant="destructive">
-                <AlertTitle>Shortlist approval failed</AlertTitle>
-                <AlertDescription>{approve.error.message}</AlertDescription>
-              </Alert>
-            ) : null}
-            {approve.isSuccess ? (
-              <Alert>
-                <CheckCircle2 aria-hidden="true" />
-                <AlertTitle>Shortlist approved</AlertTitle>
-                <AlertDescription>Report generation is now available.</AlertDescription>
-              </Alert>
-            ) : null}
-            <Button
-              disabled={!acknowledged || selectedIds.length === 0 || approve.isPending}
-              onClick={() =>
-                approve.mutate(
-                  createShortlistApprovalInput(
-                    rankingSnapshotHash,
-                    candidateIds,
-                    selectedIds,
-                    approvalNote,
-                  ),
-                )
-              }
-            >
-              {approve.isPending ? 'Approving…' : 'Approve shortlist'}
-            </Button>
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    aria-label="Acknowledge computational-only shortlist status"
+                    checked={acknowledged}
+                    onCheckedChange={(checked) => setAcknowledged(checked === true)}
+                  />
+                  I acknowledge the computational-only status.
+                </label>
+                <p className="text-sm text-muted-foreground">
+                  {selectedIds.length} candidate{selectedIds.length === 1 ? '' : 's'} selected from
+                  snapshot {rankingSnapshotHash.slice(0, 12)}…
+                </p>
+                {selectedCandidates.length === 0 ? (
+                  <Alert>
+                    <AlertTriangle aria-hidden="true" />
+                    <AlertTitle>No candidates selected</AlertTitle>
+                    <AlertDescription>
+                      Select one or more non-rejected candidates from the Rankings table before
+                      approving the shortlist.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="rounded-md border p-3">
+                    <p className="mb-2 text-sm font-medium">Selected shortlist candidates</p>
+                    <ul className="grid gap-1 text-sm">
+                      {selectedCandidates.map((candidate) => (
+                        <li key={candidate.id}>
+                          #{candidate.rank} <span className="font-mono">{candidate.peptide}</span> ·{' '}
+                          {candidate.category} · score {candidate.finalScore.toFixed(3)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <Textarea
+                  placeholder="Optional approval note"
+                  value={approvalNote}
+                  onChange={(event) => setApprovalNote(event.currentTarget.value)}
+                />
+                {approve.isError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Shortlist approval failed</AlertTitle>
+                    <AlertDescription>{approve.error.message}</AlertDescription>
+                  </Alert>
+                ) : null}
+                {approve.isSuccess ? (
+                  <Alert>
+                    <CheckCircle2 aria-hidden="true" />
+                    <AlertTitle>Shortlist approved</AlertTitle>
+                    <AlertDescription>Report generation is now available.</AlertDescription>
+                  </Alert>
+                ) : null}
+                <Button
+                  disabled={!acknowledged || selectedIds.length === 0 || approve.isPending}
+                  onClick={() =>
+                    approve.mutate(
+                      createShortlistApprovalInput(
+                        rankingSnapshotHash,
+                        candidateIds,
+                        selectedIds,
+                        approvalNote,
+                      ),
+                    )
+                  }
+                >
+                  {approve.isPending ? 'Approving…' : 'Approve shortlist'}
+                </Button>
               </>
             )}
           </div>
