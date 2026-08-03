@@ -9,6 +9,7 @@ import {
 } from './concrete-rest-api-services.js';
 
 const operations: ReadonlyArray<[ApiOperation, keyof FocusedApplicationServices, string]> = [
+  ['demo.start', 'demo', 'start'],
   ['projects.create', 'projects', 'create'],
   ['projects.list', 'projects', 'list'],
   ['projects.get', 'projects', 'get'],
@@ -49,6 +50,7 @@ function fixture() {
       }),
     );
   const services = {
+    demo: group('demo', ['start']),
     projects: group('projects', ['create', 'list', 'get', 'delete']),
     runs: group('runs', [
       'create',

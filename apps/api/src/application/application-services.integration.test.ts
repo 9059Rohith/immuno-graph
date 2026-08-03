@@ -11,6 +11,7 @@ import {
   connectorHealthListSchema,
   connectorListSchema,
   createdProjectSchema,
+  demoWorkspaceSchema,
   graphSchema,
   profileListSchema,
   projectDetailSchema,
@@ -273,6 +274,44 @@ describe('real REST application services with SQLite', () => {
     for await (const event of eventStream) replayed.push(event);
     expect(replayed.map(({ id }) => id)).toEqual(['1', '2', '3']);
   }, 30_000);
+
+  it('creates a validated, expiring fixture-only judge workspace end to end', async () => {
+    const before = Date.now();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/demo/start',
+      payload: {},
+    });
+
+    expect(response.statusCode, response.body).toBe(201);
+    const workspace = demoWorkspaceSchema.parse(data(response));
+    const project = await context.client.project.findUniqueOrThrow({
+      where: { id: workspace.projectId },
+    });
+    const runResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/runs/${workspace.runId}`,
+    });
+    const run = runDetailSchema.parse(data(runResponse));
+
+    expect(project).toMatchObject({
+      name: 'ImmunoGraph Judge Demo',
+      isDemo: true,
+      demoExpiresAt: expect.any(Date),
+    });
+    expect(new Date(workspace.expiresAt).getTime()).toBeGreaterThanOrEqual(
+      before + 24 * 60 * 60 * 1_000,
+    );
+    expect(run).toMatchObject({
+      id: workspace.runId,
+      projectId: workspace.projectId,
+      status: 'DRAFT',
+      configuration: {
+        requestedExecutionMode: 'FIXTURE',
+        fallbackPolicy: 'FIXTURE_ONLY',
+      },
+    });
+  });
 
   it('exposes safe diagnostics and fails closed when no exact fixture is available', async () => {
     const connectorList = await app.inject({ method: 'GET', url: '/api/v1/connectors' });

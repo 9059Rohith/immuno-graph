@@ -28,6 +28,8 @@ export interface CreateProjectInput {
   proteinName: string;
   description?: string;
   fasta: string;
+  isDemo?: boolean;
+  demoExpiresAt?: Date;
 }
 
 export class ProjectService {
@@ -79,6 +81,8 @@ export class ProjectService {
         organism: input.organism.trim(),
         proteinName: input.proteinName.trim(),
         ...(input.description?.trim() ? { description: input.description.trim() } : {}),
+        ...(input.isDemo === undefined ? {} : { isDemo: input.isDemo }),
+        ...(input.demoExpiresAt === undefined ? {} : { demoExpiresAt: input.demoExpiresAt }),
       });
       const protein = await repositories.proteins.create({
         projectId: project.id,

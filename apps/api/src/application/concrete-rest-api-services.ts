@@ -1,6 +1,7 @@
 import type { ApiOperation, ApiServiceContext, RestApiServices } from '../services.js';
 import type { CandidateService } from './services/candidate-service.js';
 import type { DiagnosticsService } from './services/diagnostics-service.js';
+import type { DemoService } from './services/demo-service.js';
 import type { EventService } from './services/event-service.js';
 import type { EvidenceService } from './services/evidence-service.js';
 import type { ProjectService } from './services/project-service.js';
@@ -8,6 +9,7 @@ import type { ReportService } from './services/report-service.js';
 import type { RunService } from './services/run-service.js';
 
 export interface FocusedApplicationServices {
+  demo: DemoService;
   projects: ProjectService;
   runs: RunService;
   events: EventService;
@@ -26,6 +28,8 @@ export class ConcreteRestApiServices implements RestApiServices {
     context: ApiServiceContext,
   ): Promise<unknown> {
     switch (operation) {
+      case 'demo.start':
+        return this.services.demo.start();
       case 'projects.create':
         return this.services.projects.create(
           input as unknown as Parameters<ProjectService['create']>[0],

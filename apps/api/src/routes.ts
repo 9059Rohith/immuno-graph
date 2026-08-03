@@ -20,6 +20,13 @@ interface JsonRoute {
 const routes: JsonRoute[] = [
   {
     method: 'POST',
+    url: '/demo/start',
+    operation: 'demo.start',
+    statusCode: 201,
+    body: contracts.demoStart,
+  },
+  {
+    method: 'POST',
     url: '/projects',
     operation: 'projects.create',
     statusCode: 201,

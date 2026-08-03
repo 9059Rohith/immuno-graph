@@ -21,6 +21,7 @@ import { LocalReportGenerationPort } from './local-report-generation-port.js';
 import { McpReportGenerationPort } from './mcp-report-generation-port.js';
 import { CandidateService } from './services/candidate-service.js';
 import { DiagnosticsService } from './services/diagnostics-service.js';
+import { DemoService } from './services/demo-service.js';
 import { EventService } from './services/event-service.js';
 import { EvidenceService } from './services/evidence-service.js';
 import { ProjectService } from './services/project-service.js';
@@ -58,9 +59,12 @@ export function createServices(
       fixtureWorkflow,
       environment.DEMO_MODE,
     );
+  const projects = new ProjectService(repositories, transactions, artifactStore);
+  const runs = new RunService(repositories, transactions, events, workflow);
   return new ConcreteRestApiServices({
-    projects: new ProjectService(repositories, transactions, artifactStore),
-    runs: new RunService(repositories, transactions, events, workflow),
+    demo: new DemoService(projects, runs),
+    projects,
+    runs,
     events,
     candidates: new CandidateService(repositories),
     evidence: new EvidenceService(repositories),

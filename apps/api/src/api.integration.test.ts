@@ -94,6 +94,32 @@ describe('REST API', () => {
     await app.close();
   }, 15_000);
 
+  it('starts a credential-free judge demo and rejects non-empty input', async () => {
+    const gateway = services();
+    const app = createApiApplication(environment, gateway);
+
+    const started = await app.inject({
+      method: 'POST',
+      url: '/api/v1/demo/start',
+      payload: {},
+    });
+    const rejected = await app.inject({
+      method: 'POST',
+      url: '/api/v1/demo/start',
+      payload: { fixtureId: 'custom' },
+    });
+
+    expect(started.statusCode).toBe(201);
+    expect(gateway.execute).toHaveBeenCalledWith(
+      'demo.start',
+      {},
+      expect.objectContaining({ requestId: expect.any(String) }),
+    );
+    expect(rejected.statusCode).toBe(400);
+    expect(gateway.execute).toHaveBeenCalledTimes(1);
+    await app.close();
+  });
+
   it('registers every documented endpoint and delegates regular requests', async () => {
     const gateway = services();
     const app = createApiApplication(environment, gateway);

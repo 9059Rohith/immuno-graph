@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const uuid = z.string().uuid();
 export const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
 export const empty = z.object({}).strict();
+export const demoStart = empty;
 export const idParams = (name: string) => z.object({ [name]: uuid }).strict();
 export const runParams = z.object({ runId: uuid }).strict();
 export const candidateParams = z.object({ runId: uuid, candidateId: uuid }).strict();

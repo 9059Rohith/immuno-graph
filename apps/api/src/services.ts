@@ -1,6 +1,7 @@
 import type { Readable } from 'node:stream';
 
 export type ApiOperation =
+  | 'demo.start'
   | 'projects.create'
   | 'projects.list'
   | 'projects.get'
