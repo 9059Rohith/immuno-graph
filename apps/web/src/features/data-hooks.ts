@@ -15,6 +15,7 @@ import {
   runtimeSettingsSchema,
   sequenceMapSchema,
   shortlistOptimizationSchema,
+  trustSummarySchema,
 } from '@immunograph/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -31,6 +32,12 @@ export const useRun = (id: string) =>
   useQuery({
     queryKey: queryKeys.run(id),
     queryFn: () => apiRequest(`/runs/${id}`, runDetailSchema),
+    enabled: id !== '',
+  });
+export const useTrustSummary = (id: string) =>
+  useQuery({
+    queryKey: ['trust-summary', id],
+    queryFn: () => apiRequest(`/runs/${id}/trust-summary`, trustSummarySchema),
     enabled: id !== '',
   });
 export const useWorkflow = (

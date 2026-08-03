@@ -18,6 +18,9 @@ const DockingPage = lazy(async () => ({
 const StructuresPage = lazy(async () => ({
   default: (await import('@/features/structural-pages')).StructuresPage,
 }));
+const TrustCenterPage = lazy(async () => ({
+  default: (await import('@/features/trust-center-page')).TrustCenterPage,
+}));
 const pages = () => import('@/features/workspace-pages');
 const lazyPage = <K extends keyof Awaited<ReturnType<typeof pages>>>(name: K) =>
   lazy(async () => ({ default: (await pages())[name] as ComponentType }));
@@ -54,6 +57,7 @@ export function App() {
                   <Route path="/runs/:runId/workflow" element={<WorkflowPage />} />
                   <Route path="/runs/:runId/candidates" element={<CandidatesPage />} />
                   <Route path="/runs/:runId/evidence" element={<EvidencePage />} />
+                  <Route path="/runs/:runId/trust" element={<TrustCenterPage />} />
                   <Route path="/runs/:runId/reports" element={<ReportsPage />} />
                   <Route path="/system/diagnostics" element={<DiagnosticsPage />} />
                   <Route path="/system/about" element={<AboutPage />} />
