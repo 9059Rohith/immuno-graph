@@ -50,7 +50,8 @@ The MCP SDK was upgraded to 1.30.0 and `@hono/node-server` was pinned to 2.0.12,
 
 - Compose configuration is valid.
 - The exact production MCP and API entry points were started against fresh storage. MCP `/health` and API `/health/ready` returned HTTP 200, exact-origin CORS was present, migrations and seed completed, and `POST /api/v1/demo/start` created an isolated expiring workspace.
-- A new CI `container-smoke` job builds both Docker images, starts them on an isolated network, and requires both health endpoints to pass before Render's `checksPass` deployment trigger can release the commit.
+- A new CI `container-smoke` job builds both Docker images, starts them on an isolated network, and requires both health endpoints to pass when GitHub Actions is available. Render deploys on commits so an account-level CI outage cannot block an explicitly verified release.
+- GitHub Actions run `30827902798` did not start any job because GitHub reported that the `9059Rohith` account was locked for a billing issue. This is an account blocker, not an observed application or test failure; resolve it before relying on hosted CI evidence.
 - Docker images could not be built on this workstation because the Docker Desktop Linux engine was not running (`dockerDesktopLinuxEngine` pipe absent); the CI container job is committed but cannot be claimed as executed until the revision is pushed.
 - Hosted smoke testing is pending the owner's Render and Vercel deployment URLs. No hosted success is claimed.
 

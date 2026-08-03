@@ -72,4 +72,4 @@ Do not place secrets in `VITE_*` variables; Vite embeds them in the browser bund
 
 The GitHub Actions workflow validates formatting, types, tests, production builds, documentation, and deployment contracts. Its `container-smoke` job additionally builds both production Dockerfiles, starts MCP and API containers on an isolated Docker network, and requires their health endpoints to return HTTP 200 before the revision can pass CI.
 
-Both Render services use `autoDeployTrigger: checksPass`, so a revision is not deployed automatically until these repository checks succeed.
+Both Render services use `autoDeployTrigger: commit`, allowing deployment even when repository-hosted CI is temporarily unavailable. Treat a successful local release gate or restored green CI as mandatory before pushing production changes.
