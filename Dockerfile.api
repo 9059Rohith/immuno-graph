@@ -24,6 +24,7 @@ COPY apps/api apps/api
 COPY packages packages
 COPY data data
 COPY scripts/start-api-production.mjs scripts/start-api-production.mjs
+COPY scripts/production-paths.mjs scripts/production-paths.mjs
 
 RUN npm run build --workspace @immunograph/api
 
@@ -40,7 +41,7 @@ ENV DOCKING_ENGINE_NAME=external-provider
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl \
+    && apt-get install -y --no-install-recommends openssl curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --chown=node:node --from=deps /app/node_modules ./node_modules
@@ -48,6 +49,7 @@ COPY --chown=node:node --from=build /app/apps/api ./apps/api
 COPY --chown=node:node --from=build /app/packages ./packages
 COPY --chown=node:node --from=build /app/data ./data
 COPY --chown=node:node --from=build /app/scripts/start-api-production.mjs ./scripts/start-api-production.mjs
+COPY --chown=node:node --from=build /app/scripts/production-paths.mjs ./scripts/production-paths.mjs
 COPY --chown=node:node package.json package-lock.json ./
 
 RUN mkdir -p /data/artifacts && chown -R node:node /data

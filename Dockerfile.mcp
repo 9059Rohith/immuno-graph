@@ -28,29 +28,18 @@ RUN npm run build --workspace @immunograph/mcp
 FROM node:20-bookworm-slim AS runtime
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl python3 python3-numpy python3-matplotlib \
+  && apt-get install -y --no-install-recommends ca-certificates curl openssl \
   && rm -rf /var/lib/apt/lists/*
-
-RUN mkdir -p /opt/iedb \
-  && curl -fsSL 'https://downloads.iedb.org/tools/retrieve_package.php?tool=population' -o /tmp/iedb-population-coverage.tar.gz \
-  && tar -xzf /tmp/iedb-population-coverage.tar.gz -C /opt/iedb \
-  && rm /tmp/iedb-population-coverage.tar.gz
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3001
-ENV MCP_TRANSPORT_TYPE=dual
-ENV IEDB_LIVE_ENABLED=true
-ENV IEDB_POPULATION_COVERAGE_ENABLED=true
-ENV IEDB_POPULATION_COVERAGE_SCRIPT_PATH=/opt/iedb/population_coverage/calculate_population_coverage.py
-ENV IEDB_POPULATION_COVERAGE_PYTHON_COMMAND=python3
+ENV MCP_TRANSPORT_TYPE=http
+ENV IEDB_LIVE_ENABLED=false
+ENV IEDB_POPULATION_COVERAGE_ENABLED=false
 ENV MHCFLURRY_ENABLED=false
 
 WORKDIR /app
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY --chown=node:node --from=deps /app/node_modules ./node_modules
 COPY --chown=node:node --from=build /app/apps/mcp ./apps/mcp

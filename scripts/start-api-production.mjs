@@ -1,11 +1,13 @@
 import { spawnSync } from 'node:child_process';
 
-const prismaCli = new URL('../node_modules/prisma/build/index.js', import.meta.url);
-const schema = new URL('../packages/database/prisma/schema.prisma', import.meta.url);
+import { ensureSqliteDatabaseFile, resolveProductionPaths } from './production-paths.mjs';
+
+const { prismaCli, schema } = resolveProductionPaths(import.meta.url);
+ensureSqliteDatabaseFile(process.env.DATABASE_URL ?? 'file:./immunograph.db', schema);
 
 const migration = spawnSync(
   process.execPath,
-  [prismaCli.pathname, 'migrate', 'deploy', '--schema', schema.pathname],
+  [prismaCli, 'migrate', 'deploy', '--schema', schema],
   { stdio: 'inherit', env: process.env },
 );
 if (migration.status !== 0) {

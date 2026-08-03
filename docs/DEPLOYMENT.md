@@ -19,6 +19,7 @@ npm run db:generate
 npm run build:types
 npm test
 npm run build --workspace @immunograph/web
+npm run deployment:check
 ```
 
 Commit and push the exact verified revision before creating the services.
@@ -31,7 +32,7 @@ Commit and push the exact verified revision before creating the services.
 4. Wait for `immunograph-mcp` to return HTTP 200 from `/health`.
 5. Redeploy `immunograph-api` after setting the final MCP URL, then verify `/health/live` and `/health/ready` both return HTTP 200.
 
-The API container runs Prisma migrations during startup and stores its SQLite database and artifacts on `/data`. The MCP service is stateless; the judged fixture path remains available even when optional live scientific connectors are disabled.
+The API container runs Prisma migrations during startup and stores its SQLite database and artifacts on `/data`. The MCP service is stateless and its public-demo image deliberately avoids downloading optional scientific tools during the image build. The judged fixture path therefore remains deterministic and deployable even when third-party scientific services are unavailable.
 
 ## 3. Deploy the Vercel SPA
 
@@ -66,3 +67,9 @@ Run these checks in a private browser window:
 | Render API | `ARTIFACT_ROOT` | `/data/artifacts` |
 
 Do not place secrets in `VITE_*` variables; Vite embeds them in the browser bundle.
+
+## Continuous deployment verification
+
+The GitHub Actions workflow validates formatting, types, tests, production builds, documentation, and deployment contracts. Its `container-smoke` job additionally builds both production Dockerfiles, starts MCP and API containers on an isolated Docker network, and requires their health endpoints to return HTTP 200 before the revision can pass CI.
+
+Both Render services use `autoDeployTrigger: checksPass`, so a revision is not deployed automatically until these repository checks succeed.

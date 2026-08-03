@@ -42,6 +42,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:check": "node scripts/check-docs.mjs",
+    "deployment:check": "node scripts/deployment-contract.mjs",
     "connectors:check:iedb": "node scripts/check-iedb.mjs",
     "connectors:install:iedb-population": "node scripts/install-iedb-population.mjs",
     "connectors:check:iedb-population": "node scripts/check-iedb-population.mjs",

@@ -7,7 +7,7 @@ services:
     dockerfilePath: ./Dockerfile.mcp
     dockerContext: .
     healthCheckPath: /health
-    autoDeployTrigger: commit
+    autoDeployTrigger: checksPass
     envVars:
       - key: NODE_ENV
         value: 'production'
@@ -32,7 +32,7 @@ services:
     dockerfilePath: ./Dockerfile.api
     dockerContext: .
     healthCheckPath: /health/ready
-    autoDeployTrigger: commit
+    autoDeployTrigger: checksPass
     disk:
       name: immunograph-data
       mountPath: /data
