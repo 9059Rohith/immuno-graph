@@ -127,6 +127,10 @@ The LLM is optional and has no MCP/scientific tool authority.
 - Pin Docker/base images by digest if containers are added.
 - Do not download predictor binaries/models automatically at runtime unless source, checksum, and license workflow are approved.
 
+### Release audit disposition (2026-08-03)
+
+The release pins `@modelcontextprotocol/sdk` 1.30.0 and overrides `@hono/node-server` to 2.0.12, removing the audited MCP static-file traversal path. `npm audit --omit=dev` still reports two high-severity package findings for a single React Router advisory affecting React Server Components action handling. ImmunoGraph uses React Router only as a client-side Vite SPA: it has no RSC runtime, server actions, SSR router, or `react-router-dom/server` import. The affected execution path is therefore absent from this deployment profile. This is a documented, scope-specific risk acceptance—not a claim that the dependency audit is empty—and the router must be upgraded as soon as a compatible patched release is published.
+
 ## 13. Security verification checklist
 
 - [ ] API binds to loopback by default.

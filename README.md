@@ -114,7 +114,7 @@ Codex did not manufacture deployment links, scientific accuracy, wet-lab validat
 
 ## 11. Verified test and build results
 
-The pre-hardening repository baseline contained 311 passing automated tests. The final exact test, coverage, build, audit, container, and browser results are recorded—not estimated—in the [release verification ledger](docs/superpowers/verification/2026-08-03-hackathon-release.md).
+The release gate now passes **333 Vitest tests across 79 files** and **11 Playwright tests** across authenticated, credential-free, desktop, and Pixel 7 profiles. Exact coverage, build, audit, container, and browser evidence is recorded—not estimated—in the [release verification ledger](docs/superpowers/verification/2026-08-03-hackathon-release.md).
 
 The required release gate is:
 
